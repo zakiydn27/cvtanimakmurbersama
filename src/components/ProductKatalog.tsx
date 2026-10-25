@@ -43,19 +43,24 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
 
   // ✅ EFEK BARU: Fetch data produk dari API backend
   useEffect(() => {
-    fetch('/api/products')
-      .then(res => {
-        if (!res.ok) throw new Error('Gagal memuat produk');
-        return res.json();
-      })
-      .then((data: Product[]) => {
-        setProducts(data);
+    const fetchProducts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        setProducts(data || []);
         setLoadingProducts(false);
-      })
-      .catch(err => {
+      } catch (err) {
         console.error('Error loading products:', err);
         setLoadingProducts(false);
-      });
+      }
+    };
+
+    fetchProducts();
   }, []);
 
   // Handle URL Category synchronisation
