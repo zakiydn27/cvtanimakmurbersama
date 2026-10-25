@@ -1,41 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Globe, LogIn, UserPlus, User, ShoppingCart } from 'lucide-react';
+import { Menu, X, Globe, ShoppingCart } from 'lucide-react';
 import { BUSINESS_INFO } from '../data';
 import { useCart } from '../components/CartContext';
 
+// ✅ Interface disederhanakan - hapus semua props auth
 interface HeaderProps {
   activeSection: string;
   onNavClick: (sectionId: string) => void;
-  onNavigateToLogin: () => void;
-  onNavigateToRegister: () => void;
-  onNavigateToProfile: () => void;
   onNavigateToCart: () => void;
-  isLoggedIn: boolean;
-  onLogout: () => void;
 }
 
 export default function Header({ 
   activeSection, 
   onNavClick, 
-  onNavigateToLogin, 
-  onNavigateToRegister,
-  onNavigateToProfile,
-  onNavigateToCart,
-  isLoggedIn,
-  onLogout
+  onNavigateToCart
 }: HeaderProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const { cartCount } = useCart();
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 50) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
+      setIsScrolled(window.scrollY > 50);
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -53,12 +39,6 @@ export default function Header({
   const handleItemClick = (id: string) => {
     setMobileMenuOpen(false);
     onNavClick(id);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    onLogout();
-    setShowUserMenu(false);
   };
 
   return (
@@ -108,9 +88,8 @@ export default function Header({
               ))}
             </nav>
 
-            {/* ✅ Auth Buttons, Cart, atau Profile Button */}
-            <div className="hidden sm:flex items-center space-x-3" id="desktop-auth-buttons">
-              {/* Cart Button dengan Badge */}
+            {/* ✅ Hanya Tombol Keranjang (Tanpa Auth) */}
+            <div className="hidden sm:flex items-center space-x-3" id="desktop-cart-button">
               <button
                 onClick={onNavigateToCart}
                 className="relative inline-flex items-center space-x-2 bg-transparent hover:bg-brand-accent text-brand-secondary hover:text-white border border-brand-secondary hover:border-brand-accent transition-all duration-300 px-4 py-2 rounded-sm text-xs font-bold tracking-widest uppercase shadow-sm"
@@ -124,60 +103,6 @@ export default function Header({
                   </span>
                 )}
               </button>
-
-              {isLoggedIn ? (
-                <div className="relative">
-                  <button
-                    onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="inline-flex items-center space-x-2 bg-brand-accent hover:bg-brand-accent/90 text-white border border-brand-accent transition-all duration-300 px-4 py-2 rounded-sm text-xs font-bold tracking-widest uppercase shadow-sm"
-                    id="btn-user-menu"
-                  >
-                    <User className="w-3.5 h-3.5" />
-                    <span>AKUN SAYA</span>
-                  </button>
-
-                  {showUserMenu && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-slate-200 py-1 z-50">
-                      <button
-                        onClick={() => {
-                          setShowUserMenu(false);
-                          onNavigateToProfile();
-                        }}
-                        className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-accent font-medium transition-colors flex items-center space-x-2"
-                      >
-                        <User className="w-4 h-4" />
-                        <span>Profil Saya</span>
-                      </button>
-                      <button
-                        onClick={handleLogout}
-                        className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium transition-colors flex items-center space-x-2 border-t border-slate-100"
-                      >
-                        <LogIn className="w-4 h-4 rotate-180" />
-                        <span>Logout</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <button
-                    onClick={onNavigateToLogin}
-                    className="inline-flex items-center space-x-2 bg-transparent hover:bg-brand-secondary text-brand-secondary hover:text-white border border-brand-secondary transition-all duration-300 px-4 py-2 rounded-sm text-xs font-bold tracking-widest uppercase shadow-sm"
-                    id="btn-nav-login"
-                  >
-                    <LogIn className="w-3.5 h-3.5" />
-                    <span>LOGIN</span>
-                  </button>
-                  <button
-                    onClick={onNavigateToRegister}
-                    className="inline-flex items-center space-x-2 bg-brand-accent hover:bg-brand-accent/90 text-white border border-brand-accent transition-all duration-300 px-4 py-2 rounded-sm text-xs font-bold tracking-widest uppercase shadow-sm"
-                    id="btn-nav-register"
-                  >
-                    <UserPlus className="w-3.5 h-3.5" />
-                    <span>DAFTAR</span>
-                  </button>
-                </>
-              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -240,59 +165,19 @@ export default function Header({
               ))}
             </div>
 
-            {/* Mobile Auth Buttons atau Profile */}
-            <div className="pt-4 border-t border-brand-secondary/10 space-y-2">
-              {isLoggedIn ? (
-                <>
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onNavigateToProfile();
-                    }}
-                    className="w-full flex items-center justify-center space-x-2 bg-brand-accent hover:bg-brand-accent/90 text-white font-heading font-extrabold tracking-widest text-xs py-3 rounded-lg uppercase shadow-md transition-all active:scale-95"
-                    id="btn-mobile-profile"
-                  >
-                    <User className="w-4 h-4" />
-                    <span>PROFIL SAYA</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      handleLogout();
-                    }}
-                    className="w-full flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 text-white font-heading font-extrabold tracking-widest text-xs py-3 rounded-lg uppercase shadow-md transition-all active:scale-95"
-                    id="btn-mobile-logout"
-                  >
-                    <LogIn className="w-4 h-4 rotate-180" />
-                    <span>LOGOUT</span>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onNavigateToLogin();
-                    }}
-                    className="w-full flex items-center justify-center space-x-2 bg-transparent hover:bg-brand-secondary text-brand-secondary hover:text-white border border-brand-secondary font-heading font-extrabold tracking-widest text-xs py-3 rounded-lg uppercase shadow-md transition-all active:scale-95"
-                    id="btn-mobile-login"
-                  >
-                    <LogIn className="w-4 h-4" />
-                    <span>LOGIN</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onNavigateToRegister();
-                    }}
-                    className="w-full flex items-center justify-center space-x-2 bg-brand-accent hover:bg-brand-accent/90 text-white font-heading font-extrabold tracking-widest text-xs py-3 rounded-lg uppercase shadow-md transition-all active:scale-95"
-                    id="btn-mobile-register"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    <span>DAFTAR</span>
-                  </button>
-                </>
-              )}
+            {/* ✅ Mobile Cart Button (Tanpa Auth) */}
+            <div className="pt-4 border-t border-brand-secondary/10">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onNavigateToCart();
+                }}
+                className="w-full flex items-center justify-center space-x-2 bg-brand-accent hover:bg-brand-accent/90 text-white font-heading font-extrabold tracking-widest text-xs py-3 rounded-lg uppercase shadow-md transition-all active:scale-95"
+                id="btn-mobile-cart-menu"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                <span>KERANJANG ({cartCount})</span>
+              </button>
             </div>
           </div>
         </div>

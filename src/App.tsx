@@ -184,19 +184,11 @@ export default function App() {
       {/* ✅ RENDER HOME PAGE */}
       {currentPage === 'home' && (
         <div className="bg-brand-dark min-h-screen text-slate-700 font-sans selection:bg-brand-accent selection:text-white overflow-x-hidden antialiased flex flex-col">
-          <Header
-            activeSection={selectedArticle ? 'artikel' : selectedProduct ? 'produk' : activeSection}
-            onNavClick={handleNavClick}
-            onNavigateToCart={handleNavigateToCart} // Pastikan Header Anda punya props ini
-            onNavigateToLogin={function (): void {
-              throw new Error('Function not implemented.');
-            } } onNavigateToRegister={function (): void {
-              throw new Error('Function not implemented.');
-            } } onNavigateToProfile={function (): void {
-              throw new Error('Function not implemented.');
-            } } isLoggedIn={false} onLogout={function (): void {
-              throw new Error('Function not implemented.');
-            } }          />  
+        <Header 
+          activeSection={selectedArticle ? 'artikel' : selectedProduct ? 'produk' : activeSection} 
+          onNavClick={handleNavClick}
+          onNavigateToCart={handleNavigateToCart}
+        />
 
           <main id="main-content-flow" className="pt-20 flex-1 flex flex-col justify-center">
             {selectedArticle ? (

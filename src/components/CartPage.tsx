@@ -281,22 +281,6 @@ export default function CartPage({ onBack }: CartPageProps) {
 
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700 block tracking-wide uppercase">
-                Email (Opsional)
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder="email@contoh.com"
-                  className="w-full bg-slate-50 border-2 border-slate-200 focus:border-brand-accent rounded-xl pl-10 pr-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-brand-accent/10 transition-all font-medium"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700 block tracking-wide uppercase">
                 Alamat Pengiriman Lengkap <span className="text-red-500">*</span>
               </label>
               <div className="relative">
