@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabaseClient'; // ✅ TAMBAHKAN INI
+import { supabase } from '@/lib/supabaseClient';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import ProductKatalog from './components/ProductKatalog';
@@ -9,58 +9,21 @@ import ContactForm from './components/ContactForm';
 import Footer from './components/Footer';
 import ArticleDetailPage from './components/ArticleDetailPage';
 import ProductDetailPage from './components/ProductDetailPage';
-import LoginPage from './components/LoginPage';
-import RegisterPage from './components/RegisterPage';
-import ProfilePage from './components/ProfilePage'; 
 import CartPage from './components/CartPage';
 import { CartProvider } from './components/CartContext';
 import { Article, Product } from './types';
 
-type Page = 'home' | 'login' | 'register' | 'profile' | 'cart';
+// ✅ HAPUS 'register' dan 'profile' dari type
+type Page = 'home' | 'cart';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [activeSection, setActiveSection] = useState('beranda');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState<any>(null); // ✅ TAMBAHKAN state user
+  
+  // ✅ HAPUS state isLoggedIn, user, dan loading
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [forcedProductOrder, setForcedProductOrder] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true); // ✅ TAMBAHKAN loading state
-
-  // ✅ PERBAIKAN 1: Sinkronisasi dengan Supabase Auth
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setIsLoggedIn(true);
-        setUser(session.user);
-      }
-      setLoading(false);
-    };
-
-    checkSession();
-
-    // ✅ Listen perubahan auth state (real-time sync dengan admin)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          setIsLoggedIn(true);
-          setUser(session.user);
-        } else if (event === 'SIGNED_OUT') {
-          setIsLoggedIn(false);
-          setUser(null);
-          if (currentPage === 'profile') {
-            handleBackToHome();
-          }
-        }
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
 
   // Router handlers
   const handleNavClick = (sectionId: string, skipPushState = false) => {
@@ -77,51 +40,11 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  const handleNavigateToLogin = () => {
-    setCurrentPage('login');
-    setSelectedArticle(null);
-    setSelectedProduct(null);
-    window.history.pushState(null, '', '/login');
-    window.scrollTo({ top: 0, behavior: 'instant' });
-  };
-
-  // ✅ PERBAIKAN 2: Login success ambil session dari Supabase
-  const handleLoginSuccess = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      setIsLoggedIn(true);
-      setUser(session.user);
-    }
-    setCurrentPage('home');
-    window.history.pushState(null, '', '/');
-    window.scrollTo({ top: 0, behavior: 'instant' });
-  };
-
-  const handleNavigateToProfile = () => {
-    if (!isLoggedIn) {
-      handleNavigateToLogin();
-      return;
-    }
-    setCurrentPage('profile');
-    setSelectedArticle(null);
-    setSelectedProduct(null);
-    window.history.pushState(null, '', '/profile');
-    window.scrollTo({ top: 0, behavior: 'instant' });
-  };
-
   const handleNavigateToCart = () => {
     setCurrentPage('cart');
     setSelectedArticle(null);
     setSelectedProduct(null);
     window.history.pushState(null, '', '/cart');
-    window.scrollTo({ top: 0, behavior: 'instant' });
-  };
-
-  const handleNavigateToRegister = () => {
-    setCurrentPage('register');
-    setSelectedArticle(null);
-    setSelectedProduct(null);
-    window.history.pushState(null, '', '/register');
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
@@ -132,15 +55,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  // ✅ PERBAIKAN 3: Logout via Supabase (sinkron dengan admin)
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setIsLoggedIn(false);
-    setUser(null);
-    handleBackToHome();
-  };
-
-  // ✅ PERBAIKAN 4: Implementasi Checkout yang SEBENARNYA
+  // ✅ CHECKOUT TAMPA LOGIN (Guest Checkout)
   const handleCheckout = async (orderData: {
     items: Array<{ productId: string; quantity: number }>;
     customerName: string;
@@ -149,17 +64,11 @@ export default function App() {
     shippingAddress: string;
     notes?: string;
   }) => {
-    if (!isLoggedIn) {
-      alert('Silakan login terlebih dahulu untuk checkout');
-      handleNavigateToLogin();
-      return;
-    }
-
     try {
       let totalAmount = 0;
       const orderItems = [];
 
-      // Hitung total & validasi stok
+      // 1. Hitung total & validasi stok real-time
       for (const item of orderData.items) {
         const { data: product, error } = await supabase
           .from('products')
@@ -184,25 +93,23 @@ export default function App() {
         });
       }
 
-      // Simpan order ke Supabase
-      const { data: order, error } = await supabase
+      // 2. Simpan order ke Supabase (tanpa user_id, murni guest)
+      const { error } = await supabase
         .from('orders')
         .insert([{
           customer_name: orderData.customerName,
-          customer_email: orderData.customerEmail || user?.email,
+          customer_email: orderData.customerEmail || 'guest@email.com',
           customer_phone: orderData.customerPhone,
           customer_address: orderData.shippingAddress,
           items: orderItems,
           total_price: totalAmount,
           status: 'pending',
           notes: orderData.notes || ''
-        }])
-        .select()
-        .single();
+        }]);
 
       if (error) throw error;
 
-      // Kurangi stok produk
+      // 3. Kurangi stok produk di database
       for (const item of orderItems) {
         const { data: product } = await supabase
           .from('products')
@@ -230,32 +137,6 @@ export default function App() {
   useEffect(() => {
     const handleUrlRouting = () => {
       const path = window.location.pathname;
-
-      if (path === '/login') {
-        setCurrentPage('login');
-        setSelectedArticle(null);
-        setSelectedProduct(null);
-        return;
-      }
-
-      if (path === '/register') {
-        setCurrentPage('register');
-        setSelectedArticle(null);
-        setSelectedProduct(null);
-        return;
-      }
-
-      if (path === '/profile') {
-        if (isLoggedIn) {
-          setCurrentPage('profile');
-        } else {
-          setCurrentPage('login');
-          window.history.replaceState(null, '', '/login');
-        }
-        setSelectedArticle(null);
-        setSelectedProduct(null);
-        return;
-      }
 
       if (path === '/cart') {
         setCurrentPage('cart');
@@ -288,66 +169,34 @@ export default function App() {
     return () => {
       window.removeEventListener('popstate', handleUrlRouting);
     };
-  }, [isLoggedIn]);
-
-  // ✅ PERBAIKAN 5: Loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-brand-dark flex items-center justify-center">
-        <div className="text-brand-accent text-lg animate-pulse">Memuat aplikasi...</div>
-      </div>
-    );
-  }
+  }, []); // ✅ Hapus dependency isLoggedIn
 
   return (
     <CartProvider>
-      {currentPage === 'login' && (
-        <div className="bg-brand-dark min-h-screen text-slate-700 font-sans selection:bg-brand-accent selection:text-white overflow-x-hidden antialiased">
-          <LoginPage
-            onBack={handleBackToHome}
-            onNavigateToRegister={handleNavigateToRegister}
-            onLoginSuccess={handleLoginSuccess}
-          />
-        </div>
-      )}
-
-      {currentPage === 'register' && (
-        <div className="bg-brand-dark min-h-screen text-slate-700 font-sans selection:bg-brand-accent selection:text-white overflow-x-hidden antialiased">
-          <RegisterPage 
-            onBack={handleBackToHome}
-            onNavigateToLogin={handleNavigateToLogin}
-          />
-        </div>
-      )}
-
-      {currentPage === 'profile' && (
-        <div className="bg-brand-dark min-h-screen text-slate-700 font-sans selection:bg-brand-accent selection:text-white overflow-x-hidden antialiased">
-          <ProfilePage 
-            onBack={handleBackToHome} 
-            onLogout={handleLogout} 
-          />
-        </div>
-      )}
-
+      {/* ✅ RENDER CART PAGE */}
       {currentPage === 'cart' && (
         <CartPage 
           onBack={handleBackToHome} 
-          onNavigateToLogin={handleNavigateToLogin}
+          // ✅ HAPUS onNavigateToLogin dari sini
         />
       )}
 
+      {/* ✅ RENDER HOME PAGE */}
       {currentPage === 'home' && (
         <div className="bg-brand-dark min-h-screen text-slate-700 font-sans selection:bg-brand-accent selection:text-white overflow-x-hidden antialiased flex flex-col">
-          <Header 
-            activeSection={selectedArticle ? 'artikel' : selectedProduct ? 'produk' : activeSection} 
+          <Header
+            activeSection={selectedArticle ? 'artikel' : selectedProduct ? 'produk' : activeSection}
             onNavClick={handleNavClick}
-            onNavigateToLogin={handleNavigateToLogin}
-            onNavigateToRegister={handleNavigateToRegister}
-            onNavigateToProfile={handleNavigateToProfile}
-            onNavigateToCart={handleNavigateToCart}
-            onLogout={handleLogout}
-            isLoggedIn={isLoggedIn}
-          />
+            onNavigateToCart={handleNavigateToCart} // Pastikan Header Anda punya props ini
+            onNavigateToLogin={function (): void {
+              throw new Error('Function not implemented.');
+            } } onNavigateToRegister={function (): void {
+              throw new Error('Function not implemented.');
+            } } onNavigateToProfile={function (): void {
+              throw new Error('Function not implemented.');
+            } } isLoggedIn={false} onLogout={function (): void {
+              throw new Error('Function not implemented.');
+            } }          />  
 
           <main id="main-content-flow" className="pt-20 flex-1 flex flex-col justify-center">
             {selectedArticle ? (

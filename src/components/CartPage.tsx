@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, ShoppingBag, CheckCircle2, MapPin, FileText } from 'lucide-react';
+import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, ShoppingBag, CheckCircle2, MapPin, User, Phone, Mail } from 'lucide-react';
 import { useCart } from '../components/CartContext';
 import { BUSINESS_INFO } from '../data';
-import { supabase } from '@/lib/supabaseClient'; // ✅ TAMBAHKAN INI
+import { supabase } from '@/lib/supabaseClient';
 
+// ✅ HAPUS onNavigateToLogin dari interface
 interface CartPageProps {
   onBack: () => void;
-  onNavigateToLogin: () => void;
 }
 
-export default function CartPage({ onBack, onNavigateToLogin }: CartPageProps) {
+export default function CartPage({ onBack }: CartPageProps) {
   const { cartItems, removeFromCart, updateQuantity, cartTotal, cartCount, clearCart } = useCart();
   
-  // ✅ State baru untuk informasi pengiriman
+  // ✅ State baru untuk informasi pelanggan & pengiriman (Guest Checkout)
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [shippingAddress, setShippingAddress] = useState('');
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -24,16 +27,9 @@ export default function CartPage({ onBack, onNavigateToLogin }: CartPageProps) {
       return;
     }
 
-    // ✅ 1. Cek autentikasi via Supabase (bukan localStorage)
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      alert('Silakan login terlebih dahulu untuk checkout');
-      onNavigateToLogin();
-      return;
-    }
-
-    if (!shippingAddress.trim()) {
-      alert('Mohon isi alamat pengiriman terlebih dahulu.');
+    // ✅ Validasi form wajib diisi
+    if (!customerName.trim() || !customerPhone.trim() || !shippingAddress.trim()) {
+      alert('Mohon lengkapi Nama Penerima, No. HP, dan Alamat Pengiriman.');
       return;
     }
 
@@ -43,7 +39,7 @@ export default function CartPage({ onBack, onNavigateToLogin }: CartPageProps) {
       let totalAmount = 0;
       const orderItems = [];
 
-      // ✅ 2. Validasi stok real-time dari Supabase sebelum checkout
+      // 1. Validasi stok real-time dari Supabase
       for (const item of cartItems) {
         const { data: product, error: prodError } = await supabase
           .from('products')
@@ -68,23 +64,23 @@ export default function CartPage({ onBack, onNavigateToLogin }: CartPageProps) {
         });
       }
 
-      // ✅ 3. Simpan Order ke tabel 'orders' di Supabase
+      // 2. Simpan Order sebagai "Guest Order" (tanpa user_id)
       const { error: orderError } = await supabase
         .from('orders')
         .insert([{
-          customer_name: user.user_metadata?.name || user.email?.split('@')[0] || 'Pelanggan',
-          customer_email: user.email,
-          customer_phone: user.user_metadata?.phone || '-',
+          customer_name: customerName, // ✅ Ambil dari state form
+          customer_email: customerEmail || 'guest@email.com',
+          customer_phone: customerPhone,
           customer_address: shippingAddress,
           items: orderItems,
           total_price: totalAmount,
           status: 'pending',
-          notes: notes || ''
+          notes: notes || 'Order dari Website (Guest)'
         }]);
 
       if (orderError) throw orderError;
 
-      // ✅ 4. Kurangi stok produk di database
+      // 3. Kurangi stok produk di database
       for (const item of orderItems) {
         const { data: currentProduct } = await supabase
           .from('products')
@@ -100,10 +96,10 @@ export default function CartPage({ onBack, onNavigateToLogin }: CartPageProps) {
         }
       }
 
-      // ✅ 5. Sukses: Bersihkan keranjang dan kembali ke beranda
-      alert('✅ Pesanan berhasil dibuat! Kami akan segera menghubungi Anda via WhatsApp/Email.');
+      // 4. Sukses
+      alert('✅ Pesanan berhasil dibuat! Kami akan segera menghubungi Anda.');
       clearCart();
-      onBack();
+      onBack(); // Kembali ke beranda
       
     } catch (error) {
       console.error('Checkout error:', error);
@@ -242,37 +238,93 @@ export default function CartPage({ onBack, onNavigateToLogin }: CartPageProps) {
             ))}
           </div>
 
-          {/* ✅ FORM INFORMASI PENGIRIMAN */}
-          <div className="mt-8 pt-6 border-t-2 border-slate-200 space-y-4">
+          {/* ✅ FORM INFORMASI PELANGGAN & PENGIRIMAN (GUEST CHECKOUT) */}
+          <div className="mt-8 pt-6 border-t-2 border-slate-200 space-y-6">
             <h3 className="text-lg font-bold text-slate-800 flex items-center space-x-2">
-              <MapPin className="w-5 h-5 text-brand-accent" />
-              <span>Informasi Pengiriman</span>
+              <User className="w-5 h-5 text-brand-accent" />
+              <span>Data Penerima</span>
             </h3>
             
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700 block tracking-wide uppercase">
+                  Nama Lengkap <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Nama penerima pesanan"
+                    className="w-full bg-slate-50 border-2 border-slate-200 focus:border-brand-accent rounded-xl pl-10 pr-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-brand-accent/10 transition-all font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700 block tracking-wide uppercase">
+                  No. WhatsApp <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="tel"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder="08xxxxxxxxxx"
+                    className="w-full bg-slate-50 border-2 border-slate-200 focus:border-brand-accent rounded-xl pl-10 pr-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-brand-accent/10 transition-all font-medium"
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700 block tracking-wide uppercase">
-                Alamat Pengiriman <span className="text-red-500">*</span>
+                Email (Opsional)
               </label>
-              <textarea
-                value={shippingAddress}
-                onChange={(e) => setShippingAddress(e.target.value)}
-                placeholder="Masukkan alamat lengkap untuk pengiriman..."
-                rows={3}
-                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-brand-accent rounded-xl p-4 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-brand-accent/10 transition-all font-medium resize-none"
-              />
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="email"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  placeholder="email@contoh.com"
+                  className="w-full bg-slate-50 border-2 border-slate-200 focus:border-brand-accent rounded-xl pl-10 pr-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-brand-accent/10 transition-all font-medium"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700 block tracking-wide uppercase">
+                Alamat Pengiriman Lengkap <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                <textarea
+                  value={shippingAddress}
+                  onChange={(e) => setShippingAddress(e.target.value)}
+                  placeholder="Nama jalan, RT/RW, Kelurahan, Kecamatan, Kota, Kode Pos"
+                  rows={3}
+                  className="w-full bg-slate-50 border-2 border-slate-200 focus:border-brand-accent rounded-xl pl-10 pr-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-brand-accent/10 transition-all font-medium resize-none"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700 block tracking-wide uppercase">
                 Catatan Pesanan (Opsional)
               </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Contoh: Titip di pos depan, hubungi sebelum kirim, dll."
-                rows={2}
-                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-brand-accent rounded-xl p-4 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-brand-accent/10 transition-all font-medium resize-none"
-              />
+              <div className="relative">
+                <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-3.5 hidden" /> {/* Spacer */}
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Contoh: Titip di pos depan, hubungi sebelum kirim, dll."
+                  rows={2}
+                  className="w-full bg-slate-50 border-2 border-slate-200 focus:border-brand-accent rounded-xl p-4 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-brand-accent/10 transition-all font-medium resize-none"
+                />
+              </div>
             </div>
           </div>
 
@@ -302,7 +354,7 @@ export default function CartPage({ onBack, onNavigateToLogin }: CartPageProps) {
 
             <div className="mt-4 flex items-center justify-center space-x-2 text-xs text-slate-500">
               <CheckCircle2 className="w-4 h-4 text-green-600" />
-              <span>Pembayaran aman & data terlindungi</span>
+              <span>Pesanan aman & data terlindungi</span>
             </div>
           </div>
         </div>
