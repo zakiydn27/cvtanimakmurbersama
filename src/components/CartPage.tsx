@@ -1,19 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, ShoppingBag, CheckCircle2 } from 'lucide-react';
+import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, ShoppingBag, CheckCircle2, MapPin, FileText } from 'lucide-react';
 import { useCart } from '../components/CartContext';
 import { BUSINESS_INFO } from '../data';
+import { supabase } from '@/lib/supabaseClient'; // ✅ TAMBAHKAN INI
 
-// ✅ TAMBAHKAN onNavigateToLogin di interface
 interface CartPageProps {
   onBack: () => void;
-  onCheckout: () => void;
-  onNavigateToLogin: () => void;  // ✅ Tambahkan ini
+  onNavigateToLogin: () => void;
 }
 
-// ✅ Update parameter
-export default function CartPage({ onBack, onCheckout, onNavigateToLogin }: CartPageProps) {
+export default function CartPage({ onBack, onNavigateToLogin }: CartPageProps) {
   const { cartItems, removeFromCart, updateQuantity, cartTotal, cartCount, clearCart } = useCart();
+  
+  // ✅ State baru untuk informasi pengiriman
+  const [shippingAddress, setShippingAddress] = useState('');
+  const [notes, setNotes] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleCheckout = async () => {
     if (cartItems.length === 0) {
@@ -21,43 +24,92 @@ export default function CartPage({ onBack, onCheckout, onNavigateToLogin }: Cart
       return;
     }
 
-    // ✅ Cek apakah user sudah login
-    const storedUser = localStorage.getItem('user');
-    if (!storedUser) {
+    // ✅ 1. Cek autentikasi via Supabase (bukan localStorage)
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       alert('Silakan login terlebih dahulu untuk checkout');
-      onNavigateToLogin(); // ✅ Sekarang ini valid
+      onNavigateToLogin();
       return;
     }
 
-    const userData = JSON.parse(storedUser);
+    if (!shippingAddress.trim()) {
+      alert('Mohon isi alamat pengiriman terlebih dahulu.');
+      return;
+    }
 
+    setIsProcessing(true);
+    
     try {
-      const response = await fetch('http://localhost:3000/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          customerId: userData.id,
-          items: cartItems.map(item => ({
-            productId: item.product.id,
-            quantity: item.quantity
-          }))
-        }),
-      });
+      let totalAmount = 0;
+      const orderItems = [];
 
-      const data = await response.json();
+      // ✅ 2. Validasi stok real-time dari Supabase sebelum checkout
+      for (const item of cartItems) {
+        const { data: product, error: prodError } = await supabase
+          .from('products')
+          .select('id, name, price, stok')
+          .eq('id', item.product.id)
+          .single();
 
-      if (response.ok) {
-        alert('Pesanan berhasil dibuat!');
-        clearCart();
-        onBack();
-      } else {
-        alert(data.error || 'Gagal membuat pesanan');
+        if (prodError || !product) {
+          throw new Error(`Produk "${item.product.name}" tidak ditemukan.`);
+        }
+
+        if (product.stok < item.quantity) {
+          throw new Error(`Stok "${product.name}" tidak cukup! Tersisa: ${product.stok}`);
+        }
+
+        totalAmount += product.price * item.quantity;
+        orderItems.push({
+          product_id: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: item.quantity
+        });
       }
+
+      // ✅ 3. Simpan Order ke tabel 'orders' di Supabase
+      const { error: orderError } = await supabase
+        .from('orders')
+        .insert([{
+          customer_name: user.user_metadata?.name || user.email?.split('@')[0] || 'Pelanggan',
+          customer_email: user.email,
+          customer_phone: user.user_metadata?.phone || '-',
+          customer_address: shippingAddress,
+          items: orderItems,
+          total_price: totalAmount,
+          status: 'pending',
+          notes: notes || ''
+        }]);
+
+      if (orderError) throw orderError;
+
+      // ✅ 4. Kurangi stok produk di database
+      for (const item of orderItems) {
+        const { data: currentProduct } = await supabase
+          .from('products')
+          .select('stok')
+          .eq('id', item.product_id)
+          .single();
+        
+        if (currentProduct) {
+          await supabase
+            .from('products')
+            .update({ stok: currentProduct.stok - item.quantity })
+            .eq('id', item.product_id);
+        }
+      }
+
+      // ✅ 5. Sukses: Bersihkan keranjang dan kembali ke beranda
+      alert('✅ Pesanan berhasil dibuat! Kami akan segera menghubungi Anda via WhatsApp/Email.');
+      clearCart();
+      onBack();
+      
     } catch (error) {
       console.error('Checkout error:', error);
-      alert('Terjadi kesalahan. Pastikan server backend berjalan.');
+      alert('❌ Gagal membuat pesanan: ' + (error as Error).message);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -190,6 +242,40 @@ export default function CartPage({ onBack, onCheckout, onNavigateToLogin }: Cart
             ))}
           </div>
 
+          {/* ✅ FORM INFORMASI PENGIRIMAN */}
+          <div className="mt-8 pt-6 border-t-2 border-slate-200 space-y-4">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center space-x-2">
+              <MapPin className="w-5 h-5 text-brand-accent" />
+              <span>Informasi Pengiriman</span>
+            </h3>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700 block tracking-wide uppercase">
+                Alamat Pengiriman <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={shippingAddress}
+                onChange={(e) => setShippingAddress(e.target.value)}
+                placeholder="Masukkan alamat lengkap untuk pengiriman..."
+                rows={3}
+                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-brand-accent rounded-xl p-4 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-brand-accent/10 transition-all font-medium resize-none"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700 block tracking-wide uppercase">
+                Catatan Pesanan (Opsional)
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Contoh: Titip di pos depan, hubungi sebelum kirim, dll."
+                rows={2}
+                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-brand-accent rounded-xl p-4 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-brand-accent/10 transition-all font-medium resize-none"
+              />
+            </div>
+          </div>
+
           {/* Total & Checkout */}
           <div className="mt-8 pt-6 border-t-2 border-slate-200">
             <div className="flex items-center justify-between mb-6">
@@ -201,15 +287,22 @@ export default function CartPage({ onBack, onCheckout, onNavigateToLogin }: Cart
 
             <button
               onClick={handleCheckout}
-              className="w-full bg-[#1e5631] hover:bg-[#164226] text-white font-bold tracking-widest text-sm py-4 rounded-xl uppercase shadow-xl hover:shadow-2xl transition-all active:scale-95 flex items-center justify-center space-x-2"
+              disabled={isProcessing}
+              className="w-full bg-[#1e5631] hover:bg-[#164226] disabled:bg-slate-300 text-white font-bold tracking-widest text-sm py-4 rounded-xl uppercase shadow-xl hover:shadow-2xl transition-all active:scale-95 flex items-center justify-center space-x-2"
             >
-              <ShoppingBag className="w-5 h-5" />
-              <span>LANJUTKAN KE CHECKOUT</span>
+              {isProcessing ? (
+                <span>Memproses Pesanan...</span>
+              ) : (
+                <>
+                  <ShoppingBag className="w-5 h-5" />
+                  <span>LANJUTKAN KE CHECKOUT</span>
+                </>
+              )}
             </button>
 
             <div className="mt-4 flex items-center justify-center space-x-2 text-xs text-slate-500">
               <CheckCircle2 className="w-4 h-4 text-green-600" />
-              <span>Pembayaran aman & terpercaya</span>
+              <span>Pembayaran aman & data terlindungi</span>
             </div>
           </div>
         </div>

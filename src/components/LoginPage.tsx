@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { LogIn, Mail, Lock, ArrowLeft, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { BUSINESS_INFO } from '../data';
-
+import { supabase } from '@/lib/supabaseClient'; // ✅ TAMBAHKAN INI
 
 interface LoginPageProps {
   onBack: () => void;
@@ -16,36 +16,35 @@ export default function LoginPage({ onBack, onNavigateToRegister, onLoginSuccess
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setIsLoading(true);
-  
-  try {
-    const response = await fetch('http://localhost:3000/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    try {
+      // ✅ GUNAKAN SUPABASE AUTH (Bukan fetch ke localhost)
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password,
+      });
 
-    const data = await response.json();
-
-    if (response.ok) {
-      // Login berhasil - simpan data user yang sudah include address
-      localStorage.setItem('user', JSON.stringify(data.data));
-      alert(data.message);
-      onLoginSuccess();
-    } else {
-      alert(data.error);
+      if (error) {
+        // Supabase akan memberikan pesan error yang jelas (misal: "Invalid login credentials")
+        console.error('Login error:', error);
+        alert(error.message);
+      } else {
+        // ✅ Login berhasil! 
+        // Tidak perlu localStorage.setItem, Supabase sudah menghandle session secara aman.
+        // App.tsx akan mendeteksi perubahan ini via onAuthStateChange.
+        alert('Login berhasil! Selamat datang kembali.');
+        onLoginSuccess();
+      }
+    } catch (error) {
+      console.error('Login exception:', error);
+      alert('Terjadi kesalahan sistem. Silakan coba lagi.');
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error('Login error:', error);
-    alert('Terjadi kesalahan. Pastikan server backend berjalan.');
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   return (
     <motion.div

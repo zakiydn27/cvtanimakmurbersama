@@ -36,6 +36,7 @@ export interface Product {
   packaging?: string;
   price: number;
   detailedInfo?: ProductDetailedInfo;
+  stok: number; 
 }
 
 export interface ProcessStep {

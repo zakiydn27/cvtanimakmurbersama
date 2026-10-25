@@ -1,9 +1,5 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabaseClient'; // ✅ TAMBAHKAN INI
 import Header from './components/Header';
 import Hero from './components/Hero';
 import ProductKatalog from './components/ProductKatalog';
@@ -20,30 +16,53 @@ import CartPage from './components/CartPage';
 import { CartProvider } from './components/CartContext';
 import { Article, Product } from './types';
 
-
 type Page = 'home' | 'login' | 'register' | 'profile' | 'cart';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [activeSection, setActiveSection] = useState('beranda');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<any>(null); // ✅ TAMBAHKAN state user
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [forcedProductOrder, setForcedProductOrder] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true); // ✅ TAMBAHKAN loading state
 
+  // ✅ PERBAIKAN 1: Sinkronisasi dengan Supabase Auth
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        JSON.parse(storedUser);
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
         setIsLoggedIn(true);
-      } catch (e) {
-        localStorage.removeItem('user');
+        setUser(session.user);
       }
-    }
+      setLoading(false);
+    };
+
+    checkSession();
+
+    // ✅ Listen perubahan auth state (real-time sync dengan admin)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          setIsLoggedIn(true);
+          setUser(session.user);
+        } else if (event === 'SIGNED_OUT') {
+          setIsLoggedIn(false);
+          setUser(null);
+          if (currentPage === 'profile') {
+            handleBackToHome();
+          }
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  // Router click handler
+  // Router handlers
   const handleNavClick = (sectionId: string, skipPushState = false) => {
     setSelectedArticle(null);
     setSelectedProduct(null);
@@ -58,7 +77,6 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  // Navigate to Login page
   const handleNavigateToLogin = () => {
     setCurrentPage('login');
     setSelectedArticle(null);
@@ -67,15 +85,18 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  // Handle successful login
-  const handleLoginSuccess = () => {
-    setIsLoggedIn(true);
+  // ✅ PERBAIKAN 2: Login success ambil session dari Supabase
+  const handleLoginSuccess = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      setIsLoggedIn(true);
+      setUser(session.user);
+    }
     setCurrentPage('home');
     window.history.pushState(null, '', '/');
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  // Navigate to Profile page
   const handleNavigateToProfile = () => {
     if (!isLoggedIn) {
       handleNavigateToLogin();
@@ -88,7 +109,6 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  // Navigate to Cart page
   const handleNavigateToCart = () => {
     setCurrentPage('cart');
     setSelectedArticle(null);
@@ -97,7 +117,6 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  // Navigate to Register page
   const handleNavigateToRegister = () => {
     setCurrentPage('register');
     setSelectedArticle(null);
@@ -106,7 +125,6 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  // Back to Home
   const handleBackToHome = () => {
     setCurrentPage('home');
     setActiveSection('beranda');
@@ -114,85 +132,146 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  // Logout
-  const handleLogout = () => {
-    localStorage.removeItem('user');
+  // ✅ PERBAIKAN 3: Logout via Supabase (sinkron dengan admin)
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setIsLoggedIn(false);
+    setUser(null);
     handleBackToHome();
   };
 
-  // Handle checkout dari cart
-  const handleCheckout = () => {
+  // ✅ PERBAIKAN 4: Implementasi Checkout yang SEBENARNYA
+  const handleCheckout = async (orderData: {
+    items: Array<{ productId: string; quantity: number }>;
+    customerName: string;
+    customerEmail?: string;
+    customerPhone: string;
+    shippingAddress: string;
+    notes?: string;
+  }) => {
     if (!isLoggedIn) {
       alert('Silakan login terlebih dahulu untuk checkout');
-      setCurrentPage('login');
-      window.history.pushState(null, '', '/login');
-    } else {
-      alert('Fitur checkout akan segera diimplementasikan. Terima kasih!');
-      // Di sini bisa redirect ke halaman checkout
-      // setCurrentPage('checkout');
+      handleNavigateToLogin();
+      return;
+    }
+
+    try {
+      let totalAmount = 0;
+      const orderItems = [];
+
+      // Hitung total & validasi stok
+      for (const item of orderData.items) {
+        const { data: product, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', item.productId)
+          .single();
+
+        if (error || !product) {
+          throw new Error(`Produk tidak ditemukan`);
+        }
+
+        if (product.stok < item.quantity) {
+          throw new Error(`Stok ${product.name} tidak cukup (tersisa: ${product.stok})`);
+        }
+
+        totalAmount += product.price * item.quantity;
+        orderItems.push({
+          product_id: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: item.quantity
+        });
+      }
+
+      // Simpan order ke Supabase
+      const { data: order, error } = await supabase
+        .from('orders')
+        .insert([{
+          customer_name: orderData.customerName,
+          customer_email: orderData.customerEmail || user?.email,
+          customer_phone: orderData.customerPhone,
+          customer_address: orderData.shippingAddress,
+          items: orderItems,
+          total_price: totalAmount,
+          status: 'pending',
+          notes: orderData.notes || ''
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Kurangi stok produk
+      for (const item of orderItems) {
+        const { data: product } = await supabase
+          .from('products')
+          .select('stok')
+          .eq('id', item.product_id)
+          .single();
+
+        if (product) {
+          await supabase
+            .from('products')
+            .update({ stok: product.stok - item.quantity })
+            .eq('id', item.product_id);
+        }
+      }
+
+      alert('✅ Pesanan berhasil dibuat! Kami akan segera menghubungi Anda.');
+      handleBackToHome();
+    } catch (error) {
+      console.error('Checkout error:', error);
+      alert('❌ Gagal membuat pesanan: ' + (error as Error).message);
     }
   };
 
-  // Synchronise state with URL changes (on popstate back/forward or initial load)
+  // URL Routing
   useEffect(() => {
     const handleUrlRouting = () => {
       const path = window.location.pathname;
 
-      // Handle login page
       if (path === '/login') {
         setCurrentPage('login');
         setSelectedArticle(null);
         setSelectedProduct(null);
-        window.scrollTo({ top: 0, behavior: 'instant' });
         return;
       }
 
-      // Handle register page
       if (path === '/register') {
         setCurrentPage('register');
         setSelectedArticle(null);
         setSelectedProduct(null);
-        window.scrollTo({ top: 0, behavior: 'instant' });
         return;
       }
 
-      // Handle profile page
       if (path === '/profile') {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          setIsLoggedIn(true);
+        if (isLoggedIn) {
           setCurrentPage('profile');
-          setSelectedArticle(null);
-          setSelectedProduct(null);
-          window.scrollTo({ top: 0, behavior: 'instant' });
         } else {
           setCurrentPage('login');
           window.history.replaceState(null, '', '/login');
         }
+        setSelectedArticle(null);
+        setSelectedProduct(null);
         return;
       }
 
-      // Handle cart page
       if (path === '/cart') {
         setCurrentPage('cart');
         setSelectedArticle(null);
         setSelectedProduct(null);
-        window.scrollTo({ top: 0, behavior: 'instant' });
         return;
       }
 
-      // Handle category pages
       if (path.startsWith('/kategori/')) {
         setCurrentPage('home');
         setSelectedArticle(null);
         setSelectedProduct(null);
         setActiveSection('produk');
-        window.scrollTo({ top: 0, behavior: 'instant' });
         return;
       }
 
-      // Handle regular sections
       setCurrentPage('home');
       const sectionId = path === '/' ? 'beranda' : path.slice(1);
       const validSections = ['beranda', 'produk', 'proses', 'keunggulan', 'artikel', 'kontak'];
@@ -201,7 +280,6 @@ export default function App() {
         setSelectedArticle(null);
         setSelectedProduct(null);
         setActiveSection(sectionId);
-        window.scrollTo({ top: 0, behavior: 'instant' });
       }
     };
 
@@ -210,16 +288,22 @@ export default function App() {
     return () => {
       window.removeEventListener('popstate', handleUrlRouting);
     };
-  }, []);
+  }, [isLoggedIn]);
 
-  // Wrap seluruh aplikasi dengan CartProvider
+  // ✅ PERBAIKAN 5: Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-brand-dark flex items-center justify-center">
+        <div className="text-brand-accent text-lg animate-pulse">Memuat aplikasi...</div>
+      </div>
+    );
+  }
+
   return (
     <CartProvider>
-      {/* Render Login Page */}
       {currentPage === 'login' && (
         <div className="bg-brand-dark min-h-screen text-slate-700 font-sans selection:bg-brand-accent selection:text-white overflow-x-hidden antialiased">
           <LoginPage
-            key="Login" 
             onBack={handleBackToHome}
             onNavigateToRegister={handleNavigateToRegister}
             onLoginSuccess={handleLoginSuccess}
@@ -227,7 +311,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Render Register Page */}
       {currentPage === 'register' && (
         <div className="bg-brand-dark min-h-screen text-slate-700 font-sans selection:bg-brand-accent selection:text-white overflow-x-hidden antialiased">
           <RegisterPage 
@@ -237,26 +320,24 @@ export default function App() {
         </div>
       )}
 
-      {/* Render Profile Page */}
       {currentPage === 'profile' && (
         <div className="bg-brand-dark min-h-screen text-slate-700 font-sans selection:bg-brand-accent selection:text-white overflow-x-hidden antialiased">
-          <ProfilePage onBack={handleBackToHome} onLogout={handleLogout} />
+          <ProfilePage 
+            onBack={handleBackToHome} 
+            onLogout={handleLogout} 
+          />
         </div>
       )}
 
       {currentPage === 'cart' && (
         <CartPage 
-          key="cart" 
           onBack={handleBackToHome} 
-          onCheckout={handleCheckout}
-          onNavigateToLogin={handleNavigateToLogin}  
+          onNavigateToLogin={handleNavigateToLogin}
         />
       )}
 
-      {/* Render Home Page (default) */}
       {currentPage === 'home' && (
-        <div className="bg-brand-dark min-h-screen text-slate-700 font-sans selection:bg-brand-accent selection:text-white overflow-x-hidden antialiased flex flex-col justify-between">
-          {/* 1. TOP HEADER NAVIGATION */}
+        <div className="bg-brand-dark min-h-screen text-slate-700 font-sans selection:bg-brand-accent selection:text-white overflow-x-hidden antialiased flex flex-col">
           <Header 
             activeSection={selectedArticle ? 'artikel' : selectedProduct ? 'produk' : activeSection} 
             onNavClick={handleNavClick}
@@ -268,7 +349,6 @@ export default function App() {
             isLoggedIn={isLoggedIn}
           />
 
-          {/* 2. DYNAMIC CONTENT AREA */}
           <main id="main-content-flow" className="pt-20 flex-1 flex flex-col justify-center">
             {selectedArticle ? (
               <ArticleDetailPage 
@@ -322,7 +402,6 @@ export default function App() {
             )}
           </main>
 
-          {/* 3. BRAND FOOTER */}
           <Footer onNavClick={handleNavClick} />
         </div>
       )}

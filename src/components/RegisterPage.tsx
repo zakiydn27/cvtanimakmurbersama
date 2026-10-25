@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { UserPlus, Mail, Lock, User, Phone, ArrowLeft, Eye, EyeOff, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { BUSINESS_INFO } from '../data';
+import { supabase } from '@/lib/supabaseClient'; // ✅ TAMBAHKAN INI
 
 interface RegisterPageProps {
   onBack: () => void;
@@ -9,7 +10,6 @@ interface RegisterPageProps {
 }
 
 export default function RegisterPage({ onBack, onNavigateToLogin }: RegisterPageProps) {
-  // Benefits list for left panel. Try to use BUSINESS_INFO.benefits if available.
   const benefits: string[] = Array.isArray((BUSINESS_INFO as any)?.benefits)
     ? (BUSINESS_INFO as any).benefits
     : [
@@ -17,6 +17,7 @@ export default function RegisterPage({ onBack, onNavigateToLogin }: RegisterPage
         'Dukungan teknis dan saran ahli',
         'Promo dan penawaran eksklusif untuk anggota',
       ];
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -30,14 +31,19 @@ export default function RegisterPage({ onBack, onNavigateToLogin }: RegisterPage
   const [agreeTerms, setAgreeTerms] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (formData.password !== formData.confirmPassword) {
       alert('Password dan konfirmasi password tidak cocok!');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      alert('Password minimal harus 6 karakter!');
       return;
     }
 
@@ -49,33 +55,37 @@ export default function RegisterPage({ onBack, onNavigateToLogin }: RegisterPage
     setIsLoading(true);
     
     try {
-      const response = await fetch('http://localhost:3000/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          password: formData.password
-        }),
+      // ✅ GUNAKAN SUPABASE AUTH SIGN UP
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email.trim(),
+        password: formData.password,
+        options: {
+          // ✅ Simpan nama dan telepon ke metadata user di Supabase
+          data: {
+            name: formData.name.trim(),
+            phone: formData.phone.trim(),
+          }
+        }
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        // Registrasi berhasil
-        alert(data.message);
-        // Redirect ke halaman login
-        onNavigateToLogin();
+      if (error) {
+        console.error('Register error:', error);
+        // Supabase akan memberikan pesan error yang jelas, misal: "User already registered"
+        alert(error.message);
       } else {
-        // Registrasi gagal
-        alert(data.error);
+        // ✅ Registrasi berhasil
+        // Catatan: Jika di dashboard Supabase "Confirm email" aktif, user harus cek email dulu.
+        // Jika dimatikan, user bisa langsung login.
+        if (data.user && !data.session) {
+          alert('Registrasi berhasil! Silakan cek email Anda untuk mengonfirmasi akun sebelum login.');
+        } else {
+          alert('Registrasi berhasil! Silakan login dengan akun Anda.');
+        }
+        onNavigateToLogin();
       }
     } catch (error) {
-      console.error('Register error:', error);
-      alert('Terjadi kesalahan. Pastikan server backend berjalan.');
+      console.error('Register exception:', error);
+      alert('Terjadi kesalahan sistem. Silakan coba lagi.');
     } finally {
       setIsLoading(false);
     }
@@ -140,7 +150,7 @@ export default function RegisterPage({ onBack, onNavigateToLogin }: RegisterPage
                 </p>
                 <button
                   onClick={onNavigateToLogin}
-                  className="bg-rounded solid bg-brand-accent hover:bg-brand-accent/90 text-white font-bold tracking-widest text-sm py-3 rounded-xl uppercase shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center justify-center space-x-2 w-full"
+                  className="bg-brand-accent hover:bg-brand-accent/90 text-white font-bold tracking-widest text-sm py-3 rounded-xl uppercase shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center justify-center space-x-2 w-full"
                 >
                   LOGIN DI SINI
                 </button>
@@ -243,7 +253,7 @@ export default function RegisterPage({ onBack, onNavigateToLogin }: RegisterPage
                       required
                       value={formData.password}
                       onChange={handleChange}
-                      placeholder="Minimal 8 karakter"
+                      placeholder="Minimal 6 karakter"
                       className="w-full bg-slate-50 border-2 border-slate-200 focus:border-brand-accent rounded-xl pl-12 pr-12 py-3.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-brand-accent/10 transition-all font-medium"
                     />
                     <button
@@ -296,7 +306,7 @@ export default function RegisterPage({ onBack, onNavigateToLogin }: RegisterPage
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="bg-rounded solid bg-brand-accent hover:bg-brand-accent/90 text-white font-bold tracking-widest text-sm py-3 rounded-xl uppercase shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center justify-center space-x-2 w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-brand-accent hover:bg-brand-accent/90 text-white font-bold tracking-widest text-sm py-3 rounded-xl uppercase shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center justify-center space-x-2 w-full disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? (
                     <span>Memproses...</span>

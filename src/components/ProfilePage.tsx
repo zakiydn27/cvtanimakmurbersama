@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { User, Mail, Phone, MapPin, Lock, Save, Trash2, ArrowLeft, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { BUSINESS_INFO } from '../data';
+import { supabase } from '@/lib/supabaseClient'; // ✅ Pastikan ini ada
 
 interface ProfilePageProps {
   onBack: () => void;
@@ -37,22 +38,34 @@ export default function ProfilePage({ onBack, onLogout }: ProfilePageProps) {
     loadUserData();
   }, []);
 
+  // ✅ PERBAIKAN 1: Ambil data langsung dari Supabase Auth, bukan localStorage
   const loadUserData = async () => {
     try {
-      const storedUser = localStorage.getItem('user');
-      if (!storedUser) {
-        alert('Silakan login terlebih dahulu');
-        onBack();
+      const { data: { user: supabaseUser }, error } = await supabase.auth.getUser();
+      
+      if (error || !supabaseUser) {
+        alert('Sesi Anda telah berakhir. Silakan login kembali.');
+        onLogout(); // Ini akan memanggil handleLogout di App.tsx
         return;
       }
 
-      const userData = JSON.parse(storedUser);
+      const metadata = supabaseUser.user_metadata || {};
+      
+      const userData: UserData = {
+        id: supabaseUser.id,
+        name: metadata.name || supabaseUser.email?.split('@')[0] || 'Pengguna',
+        email: supabaseUser.email || '',
+        phone: metadata.phone || '',
+        address: metadata.address || '',
+        registeredAt: supabaseUser.created_at
+      };
+
       setUser(userData);
       setFormData({
-        name: userData.name || '',
-        email: userData.email || '',
-        phone: userData.phone || '',
-        address: userData.address || '',
+        name: userData.name,
+        email: userData.email,
+        phone: userData.phone,
+        address: userData.address,
         newPassword: '',
         confirmPassword: ''
       });
@@ -68,6 +81,7 @@ export default function ProfilePage({ onBack, onLogout }: ProfilePageProps) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // ✅ PERBAIKAN 2: Update profil menggunakan Supabase Auth API
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -76,57 +90,60 @@ export default function ProfilePage({ onBack, onLogout }: ProfilePageProps) {
       return;
     }
 
-    if (formData.newPassword && formData.newPassword.length < 8) {
-      alert('Password minimal 8 karakter!');
+    if (formData.newPassword && formData.newPassword.length < 6) {
+      alert('Password minimal harus 6 karakter!');
       return;
     }
 
     setIsSaving(true);
     
     try {
-      const storedUser = localStorage.getItem('user');
-      if (!storedUser) throw new Error('User tidak ditemukan');
-      
-      const userData = JSON.parse(storedUser);
-
-      const response = await fetch(`http://localhost:3000/api/users/${userData.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const updatePayload: any = {
+        data: {
           name: formData.name,
-          email: formData.email,
           phone: formData.phone,
-          address: formData.address,
-          newPassword: formData.newPassword || undefined
-        }),
-      });
+          address: formData.address
+        }
+      };
 
-      const data = await response.json();
-
-      if (response.ok) {
-        alert('Profil berhasil diupdate!');
-        // Update localStorage dengan data baru
-        localStorage.setItem('user', JSON.stringify(data.data));
-        setUser(data.data);
-        // Reset password fields
-        setFormData({
-          ...formData,
-          newPassword: '',
-          confirmPassword: ''
-        });
-      } else {
-        alert(data.error || 'Gagal update profil');
+      // Jika email diubah, Supabase akan meminta verifikasi email baru
+      if (formData.email !== user?.email) {
+        updatePayload.email = formData.email;
       }
+
+      // Jika password diisi, tambahkan ke payload
+      if (formData.newPassword) {
+        updatePayload.password = formData.newPassword;
+      }
+
+      const { error } = await supabase.auth.updateUser(updatePayload);
+
+      if (error) throw error;
+
+      alert('✅ Profil berhasil diupdate!');
+      
+      // Refresh data user terbaru
+      await loadUserData();
+      
+      // Reset field password
+      setFormData(prev => ({
+        ...prev,
+        newPassword: '',
+        confirmPassword: ''
+      }));
+      
+      setShowPassword(false);
+      setShowConfirmPassword(false);
+
     } catch (error) {
       console.error('Error saving profile:', error);
-      alert('Terjadi kesalahan. Pastikan server backend berjalan.');
+      alert('❌ Gagal update profil: ' + (error as Error).message);
     } finally {
       setIsSaving(false);
     }
   };
 
+  // ✅ PERBAIKAN 3: Penanganan Hapus Akun yang Aman
   const handleDeleteAccount = async () => {
     if (!showDeleteConfirm) {
       setShowDeleteConfirm(true);
@@ -134,27 +151,19 @@ export default function ProfilePage({ onBack, onLogout }: ProfilePageProps) {
     }
 
     try {
-      const storedUser = localStorage.getItem('user');
-      if (!storedUser) throw new Error('User tidak ditemukan');
+      // CATATAN KEAMANAN: 
+      // Menghapus user Auth secara permanen dari frontend TIDAK DIMUNGKINKAN 
+      // tanpa menggunakan Service Role Key (yang sangat berbahaya jika ditaruh di frontend).
+      // Solusi terbaik: Nonaktifkan akun (sign out) dan instruksikan user menghubungi Admin 
+      // untuk penghapusan data permanen dari Dashboard Admin.
       
-      const userData = JSON.parse(storedUser);
-
-      const response = await fetch(`http://localhost:3000/api/users/${userData.id}`, {
-        method: 'DELETE',
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        alert('Akun berhasil dihapus');
-        localStorage.removeItem('user');
-        onLogout();
-      } else {
-        alert(data.error || 'Gagal menghapus akun');
-      }
+      await supabase.auth.signOut();
+      alert('⚠️ Akun Anda telah dinonaktifkan. Untuk penghapusan data permanen, silakan hubungi Admin Tani Makmur Bersama.');
+      onLogout(); // Akan membersihkan state dan redirect ke home
+      
     } catch (error) {
-      console.error('Error deleting account:', error);
-      alert('Terjadi kesalahan saat menghapus akun');
+      console.error('Error deactivating account:', error);
+      alert('Terjadi kesalahan saat menonaktifkan akun');
     }
   };
 
@@ -252,6 +261,12 @@ export default function ProfilePage({ onBack, onLogout }: ProfilePageProps) {
                   className="w-full bg-slate-50 border-2 border-slate-200 focus:border-brand-accent rounded-xl pl-12 pr-4 py-3.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-brand-accent/10 transition-all font-medium"
                 />
               </div>
+              {formData.email !== user?.email && (
+                <p className="text-xs text-amber-600 flex items-center mt-1">
+                  <AlertTriangle className="w-3 h-3 mr-1" />
+                  Mengubah email akan memerlukan verifikasi ulang.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -377,7 +392,7 @@ export default function ProfilePage({ onBack, onLogout }: ProfilePageProps) {
                     Zona Bahaya
                   </h3>
                   <p className="text-xs text-red-600 mt-1">
-                    Tindakan ini tidak dapat dibatalkan. Semua data akun Anda akan dihapus secara permanen.
+                    Tindakan ini akan menonaktifkan akun Anda. Untuk penghapusan data permanen, silakan hubungi Admin.
                   </p>
                 </div>
               </div>
@@ -389,12 +404,12 @@ export default function ProfilePage({ onBack, onLogout }: ProfilePageProps) {
                   className="w-full bg-red-600 hover:bg-red-700 text-white font-bold tracking-widest text-sm py-3.5 rounded-xl uppercase transition-all flex items-center justify-center space-x-2"
                 >
                   <Trash2 className="w-5 h-5" />
-                  <span>HAPUS AKUN</span>
+                  <span>NONAKTIFKAN AKUN</span>
                 </button>
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm font-bold text-red-800 text-center">
-                    Yakin ingin menghapus akun?
+                    Yakin ingin menonaktifkan akun ini?
                   </p>
                   <div className="flex space-x-3">
                     <button
@@ -410,7 +425,7 @@ export default function ProfilePage({ onBack, onLogout }: ProfilePageProps) {
                       className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold tracking-widest text-sm py-3.5 rounded-xl uppercase transition-all flex items-center justify-center space-x-2"
                     >
                       <Trash2 className="w-5 h-5" />
-                      <span>Ya, Hapus</span>
+                      <span>Ya, Nonaktifkan</span>
                     </button>
                   </div>
                 </div>

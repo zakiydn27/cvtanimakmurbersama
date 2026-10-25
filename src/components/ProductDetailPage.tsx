@@ -1,4 +1,4 @@
-import React, { JSX, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { 
   ArrowLeft, 
@@ -12,11 +12,14 @@ import {
   Award, 
   Zap, 
   Truck, 
-  CheckCircle 
+  CheckCircle,
+  AlertTriangle, // ✅ TAMBAHKAN
+  XCircle        // ✅ TAMBAHKAN
 } from 'lucide-react';
 import { Product } from '../types';
 import { BUSINESS_INFO } from '../data';
 import { useCart } from '../components/CartContext';
+import { supabase } from '@/lib/supabaseClient'; // ✅ TAMBAHKAN INI
 
 interface ProductDetailPageProps {
   product: Product;
@@ -26,26 +29,26 @@ interface ProductDetailPageProps {
 }
 
 // ==========================================
-// KOMPONEN SECTION TITLE (Style Baru)
+// KOMPONEN SECTION TITLE (Style Gambar 1)
 // ==========================================
-const SectionTitle = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`flex items-center gap-3 mb-6 ${className}`}>
-    <div className="w-1.5 h-8 bg-brand-accent rounded-sm flex-shrink-0 shadow-sm" />
-    <h3 className="text-lg sm:text-xl font-heading font-extrabold text-[#1e5631] uppercase tracking-wide">
+const SectionTitle = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex items-center gap-3 mb-5">
+    <div className="w-1 h-7 bg-[#ea580c] rounded-full flex-shrink-0" />
+    <h3 className="text-base sm:text-lg font-heading font-extrabold text-[#1e5631] uppercase tracking-wide">
       {children}
     </h3>
   </div>
 );
 
 // ==========================================
-// PARSER DESKRIPSI TERSTRUKTUR
+// PARSER DESKRIPSI TERSTRUKTUR (Style Gambar 1)
 // ==========================================
 const renderStructuredDescription = (description: string) => {
   if (!description) return null;
 
   // Split berdasarkan pola **TITLE**
   const sections = description.split(/\*\*(.*?)\*\*/g);
-  const elements: JSX.Element[] = [];
+  const elements: React.JSX.Element[] = [];
   let i = 0;
 
   while (i < sections.length) {
@@ -62,47 +65,51 @@ const renderStructuredDescription = (description: string) => {
       const content = sections[i + 1]?.trim() || '';
       
       elements.push(
-        <div key={`section-${i}`} className="mb-10">
+        <div key={`section-${i}`} className="mb-8">
           <SectionTitle>{title}</SectionTitle>
           
           {/* Render content berdasarkan tipe */}
-          {content.split('\n').map((line, idx) => {
-            const trimmedLine = line.trim();
-            if (!trimmedLine) return null;
-            
-            // List dengan bullet (✓ atau •)
-            if (trimmedLine.startsWith('✓') || trimmedLine.startsWith('•')) {
-              return (
-                <div key={idx} className="flex items-start space-x-3 mb-2.5 p-3 bg-white rounded-lg border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                  <CheckCircle2 className="w-5 h-5 text-brand-accent shrink-0 mt-0.5" />
-                  <span className="text-sm text-slate-700 leading-relaxed">
-                    {trimmedLine.replace(/^[✓•]\s*/, '')}
-                  </span>
-                </div>
-              );
-            }
-            
-            // Numbered list
-            if (/^\d+\.\s/.test(trimmedLine)) {
-              const num = trimmedLine.match(/^(\d+)\./)?.[1];
-              const text = trimmedLine.replace(/^\d+\.\s*/, '');
-              return (
-                <div key={idx} className="flex items-start space-x-3 mb-2.5 p-3 bg-white rounded-lg border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="w-7 h-7 bg-brand-accent text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">
-                    {num}
+          <div className="space-y-3">
+            {content.split('\n').map((line, idx) => {
+              const trimmedLine = line.trim();
+              if (!trimmedLine) return null;
+              
+              // List dengan bullet (✓ atau •)
+              if (trimmedLine.startsWith('✓') || trimmedLine.startsWith('•')) {
+                return (
+                  <div key={idx} className="flex items-start gap-3 p-4 bg-white border border-slate-200 rounded-lg hover:border-[#ea580c]/30 transition-colors">
+                    <div className="w-5 h-5 rounded-full bg-[#ea580c]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <div className="w-2 h-2 bg-[#ea580c] rounded-full" />
+                    </div>
+                    <span className="text-sm text-slate-700 leading-relaxed flex-grow">
+                      {trimmedLine.replace(/^[✓•]\s*/, '')}
+                    </span>
                   </div>
-                  <span className="text-sm text-slate-700 leading-relaxed flex-grow">{text}</span>
-                </div>
+                );
+              }
+              
+              // Numbered list
+              if (/^\d+\.\s/.test(trimmedLine)) {
+                const num = trimmedLine.match(/^(\d+)\./)?.[1];
+                const text = trimmedLine.replace(/^\d+\.\s*/, '');
+                return (
+                  <div key={idx} className="flex items-start gap-3 p-4 bg-white border border-slate-200 rounded-lg hover:border-[#ea580c]/30 transition-colors">
+                    <div className="w-7 h-7 rounded-full bg-[#ea580c] text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                      {num}
+                    </div>
+                    <span className="text-sm text-slate-700 leading-relaxed flex-grow pt-0.5">{text}</span>
+                  </div>
+                );
+              }
+              
+              // Paragraf biasa
+              return (
+                <p key={idx} className="text-sm text-slate-700 leading-relaxed py-2">
+                  {trimmedLine}
+                </p>
               );
-            }
-            
-            // Paragraf biasa
-            return (
-              <p key={idx} className="text-sm text-slate-700 leading-relaxed mb-3">
-                {trimmedLine}
-              </p>
-            );
-          })}
+            })}
+          </div>
         </div>
       );
       
@@ -111,7 +118,7 @@ const renderStructuredDescription = (description: string) => {
       // Teks biasa (sebelum judul pertama)
       if (text && i === 0) {
         elements.push(
-          <div key={`intro-${i}`} className="mb-8">
+          <div key={`intro-${i}`} className="mb-6">
             <p className="text-sm text-slate-700 leading-relaxed">{text}</p>
           </div>
         );
@@ -124,11 +131,15 @@ const renderStructuredDescription = (description: string) => {
 };
 
 export default function ProductDetailPage({ product, onBack, onNavigateToProduct, onOrderProduct }: ProductDetailPageProps) {
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [addedToCart, setAddedToCart] = useState(false);
   const { addToCart } = useCart();
 
   const handleAddToCart = () => {
+    if (product.stok === 0) {
+      alert('Maaf, stok produk ini sedang habis.');
+      return;
+    }
     addToCart(product);
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2000);
@@ -139,21 +150,23 @@ export default function ProductDetailPage({ product, onBack, onNavigateToProduct
     setAddedToCart(false);
   }, [product]);
 
+  // ✅ PERBAIKAN: Ambil produk terkait langsung dari Supabase
   useEffect(() => {
-    fetch('/api/products')
-      .then(res => {
-        if (!res.ok) throw new Error('Gagal memuat produk');
-        return res.json();
-      })
-      .then((data: Product[]) => {
-        setAllProducts(data);
-      })
-      .catch(err => {
-        console.error('Error loading products:', err);
-      });
-  }, []);
+    const fetchRelatedProducts = async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('category', product.category)
+        .neq('id', product.id)
+        .limit(3);
 
-  const relatedProducts = allProducts.filter((p) => p.category === product.category && p.id !== product.id);
+      if (!error && data) {
+        setRelatedProducts(data);
+      }
+    };
+
+    fetchRelatedProducts();
+  }, [product.category, product.id]);
 
   const getWhatsAppLink = () => {
     const message = `Halo Tani Makmur Bersama, saya ingin bertanya lebih lanjut mengenai Produk: "${product.name}" (Rp ${product.price.toLocaleString('id-ID')}). Apakah stok produk masih tersedia?`;
@@ -250,16 +263,24 @@ export default function ProductDetailPage({ product, onBack, onNavigateToProduct
                 {/* Add to Cart Button */}
                 <button
                   onClick={handleAddToCart}
+                  disabled={product.stok === 0}
                   className={`inline-flex items-center space-x-2 px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wider transition-all shadow-lg ${
-                    addedToCart
-                      ? 'bg-green-600 text-white'
-                      : 'bg-[#1e5631] hover:bg-[#164226] text-white'
+                    product.stok === 0 
+                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                      : addedToCart
+                        ? 'bg-green-600 text-white'
+                        : 'bg-[#1e5631] hover:bg-[#164226] text-white'
                   }`}
                 >
                   {addedToCart ? (
                     <>
                       <CheckCircle2 className="w-5 h-5" />
                       <span>DITAMBAHKAN</span>
+                    </>
+                  ) : product.stok === 0 ? (
+                    <>
+                      <XCircle className="w-5 h-5" />
+                      <span>STOK HABIS</span>
                     </>
                   ) : (
                     <>
@@ -269,10 +290,23 @@ export default function ProductDetailPage({ product, onBack, onNavigateToProduct
                   )}
                 </button>
 
-                <div className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
-                  <CheckCircle className="w-3.5 h-3.5" />
-                  <span>STOK READY</span>
-                </div>
+                {/* ✅ PERBAIKAN: Indikator Stok Dinamis */}
+                {(product.stok ?? 0) > 10 ? (
+                  <div className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>STOK READY ({product.stok} pcs)</span>
+                  </div>
+                ) : (product.stok ?? 0) > 0 ? (
+                  <div className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-[10px] font-mono font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-sm">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    <span>STOK TERBATAS ({product.stok} pcs)</span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-[10px] font-mono font-bold bg-red-50 text-red-700 border border-red-200 shadow-sm">
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>STOK HABIS</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -323,10 +357,15 @@ export default function ProductDetailPage({ product, onBack, onNavigateToProduct
 
               <button
                 onClick={() => onOrderProduct(product)}
-                className="inline-flex items-center justify-center bg-[#1e5631] hover:bg-[#164226] text-white font-heading font-black text-xs py-3.5 px-4 rounded-xl uppercase transition-all shadow-sm cursor-pointer w-full"
+                disabled={product.stok === 0}
+                className={`inline-flex items-center justify-center font-heading font-black text-xs py-3.5 px-4 rounded-xl uppercase transition-all shadow-sm cursor-pointer w-full ${
+                  product.stok === 0 
+                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
+                    : 'bg-[#1e5631] hover:bg-[#164226] text-white'
+                }`}
               >
                 <Phone className="w-4 h-4 mr-2" />
-                <span>BELI SEKARANG VIA WHATSAPP</span>
+                <span>{product.stok === 0 ? 'STOK HABIS' : 'BELI SEKARANG VIA WHATSAPP'}</span>
               </button>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-200">
@@ -360,9 +399,7 @@ export default function ProductDetailPage({ product, onBack, onNavigateToProduct
               </div>
             </div>
 
-            {/* ========================================== */}
-            {/* DESKRIPSI TERSTRUKTUR DENGAN STYLE BARU */}
-            {/* ========================================== */}
+            {/* DESKRIPSI TERSTRUKTUR */}
             <div className="bg-white rounded-2xl shadow-lg p-8 border border-slate-200">
               {renderStructuredDescription(product.description)}
             </div>
@@ -388,7 +425,7 @@ export default function ProductDetailPage({ product, onBack, onNavigateToProduct
             </SectionTitle>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {relatedProducts.slice(0, 3).map((prod) => (
+              {relatedProducts.map((prod) => (
                 <div
                   key={prod.id}
                   onClick={() => onNavigateToProduct(prod)}

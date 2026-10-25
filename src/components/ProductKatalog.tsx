@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingCart, ShoppingBag, ExternalLink, Phone, CheckCircle2, X, Plus, Minus, Trash2, PlusCircle } from 'lucide-react';
 import { BUSINESS_INFO } from '../data';
 import { Product } from '../types';
+import { supabase } from '@/lib/supabaseClient'
 
 interface OrderItem {
   product: Product;
@@ -134,7 +135,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
     setOrderedItems(prev => prev.filter(item => item.product.id !== productId));
   };
 
-  // ✅ UBAH: Gunakan state 'products' bukan 'PRODUCTS' statis
   const handleAddAdditionalProduct = () => {
     if (!targetProductToAdd) return;
     const prodToAdd = products.find(p => p.id === targetProductToAdd);

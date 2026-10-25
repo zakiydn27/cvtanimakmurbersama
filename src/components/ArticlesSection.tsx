@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BookOpen, User, Calendar, ArrowRight, X, Clock } from 'lucide-react';
 import { Article } from '../types';
+import { supabase } from '@/lib/supabaseClient'
 
 interface ArticlesSectionProps {
   onArticleClick?: (article: Article) => void;
@@ -10,33 +11,48 @@ interface ArticlesSectionProps {
 export default function ArticlesSection({ onArticleClick }: ArticlesSectionProps) {
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   
-  // ✅ STATE BARU: Data artikel dari API
+  // ✅ STATE: Data artikel dari Supabase
   const [articles, setArticles] = useState<Article[]>([]);
   const [loadingArticles, setLoadingArticles] = useState(true);
 
-  // ✅ EFEK BARU: Fetch data artikel dari API backend
+  // ✅ EFEK: Fetch data artikel dari Supabase
   useEffect(() => {
-    fetch('/api/articles')
-      .then(res => {
-        if (!res.ok) throw new Error('Gagal memuat artikel');
-        return res.json();
-      })
-      .then((data: Article[]) => {
-        setArticles(data);
+    const fetchArticles = async () => {
+      try {
+        // Tambahkan .order agar artikel terbaru muncul di atas
+        const { data, error } = await supabase
+          .from('articles')
+          .select('*')
+          .order('published_at', { ascending: false });
+
+        if (error) {
+          console.error('❌ Supabase error:', error);
+          throw new Error('Gagal memuat artikel');
+        }
+
+        // ✅ Mapping data: Ubah 'published_at' (dari DB) menjadi 'publishedAt' (untuk UI)
+        const mappedArticles = (data || []).map(item => ({
+          ...item,
+          publishedAt: item.published_at || item.publishedAt 
+        }));
+
+        setArticles(mappedArticles as Article[]);
+      } catch (err) {
+        console.error('💥 Error loading articles:', err);
+      } finally {
         setLoadingArticles(false);
-      })
-      .catch(err => {
-        console.error('Error loading articles:', err);
-        setLoadingArticles(false);
-      });
-  }, []);
+      }
+    };
+
+    fetchArticles();
+  }, []); // <-- Pastikan hanya ada satu penutup useEffect seperti ini
 
   // ✅ Loading state saat fetch data
   if (loadingArticles) {
     return (
       <section id="artikel" className="py-24 bg-brand-dark border-t border-brand-secondary/10 relative">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-brand-accent text-lg">Memuat artikel...</p>
+          <p className="text-brand-accent text-lg animate-pulse">Memuat artikel...</p>
         </div>
       </section>
     );
@@ -68,7 +84,6 @@ export default function ArticlesSection({ onArticleClick }: ArticlesSectionProps
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8" id="articles-grid">
-            {/* ✅ UBAH: Gunakan state 'articles' bukan 'ARTICLES' statis */}
             {articles.map((article, idx) => (
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
