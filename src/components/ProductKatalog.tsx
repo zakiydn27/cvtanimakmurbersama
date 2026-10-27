@@ -485,7 +485,7 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-sm"
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm"
               id="order-form-modal"
               onClick={() => setIsOrderFormOpen(false)}
             >
@@ -494,42 +494,42 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 30 }}
                 transition={{ type: "spring", damping: 25 }}
-                className="bg-zinc-950/98 border border-brand-secondary/40 w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col"
+                className="bg-white border border-slate-200 w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Header Title with Cart Close */}
-                <div className="flex items-center justify-between p-6 border-b border-brand-secondary/20">
-                  <div className="flex items-center space-x-2.5">
-                    <div className="bg-brand-accent/20 border border-brand-accent/45 p-1.5 rounded text-brand-accent">
-                      <ShoppingCart className="w-5 h-5 animate-pulse" />
+                {/* Header dengan tema hijau */}
+                <div className="flex items-center justify-between p-6 bg-gradient-to-r from-[#1e5631] to-[#164226] text-white">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-white/20 backdrop-blur-sm p-2.5 rounded-lg">
+                      <ShoppingCart className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-heading font-extrabold text-[#fdfbf7] tracking-wide uppercase">
+                      <h3 className="text-lg font-bold tracking-wide uppercase">
                         Form Jumlah Pesanan
                       </h3>
-                      <p className="text-[10px] text-gray-400 font-mono tracking-widest uppercase">
+                      <p className="text-xs text-white/80 mt-0.5">
                         Ubah Jumlah, Tambah Barang & Kirim WA Direct
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => setIsOrderFormOpen(false)}
-                    className="text-gray-400 hover:text-brand-accent p-2 rounded bg-brand-primary/20 border border-brand-secondary/35 focus:outline-none cursor-pointer"
-                    aria-label="Tutup edit"
+                    className="text-white/80 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                    aria-label="Tutup"
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
-                <div className="overflow-y-auto p-6 space-y-6 flex-grow">
+                <div className="overflow-y-auto p-6 space-y-6 flex-grow bg-slate-50">
                   {/* Current Items List */}
                   <div className="space-y-4">
-                    <span className="text-[10px] font-mono tracking-widest text-brand-accent block uppercase font-bold">
-                      DAFTAR BELANJA ({orderedItems.length} BARANG)
+                    <span className="text-xs font-bold text-[#1e5631] block uppercase tracking-wider">
+                      Daftar Belanja ({orderedItems.length} Barang)
                     </span>
                     
                     {orderedItems.length === 0 ? (
-                      <div className="py-8 text-center border border-dashed border-brand-secondary/35 rounded-xl text-gray-500 text-xs">
+                      <div className="py-8 text-center border-2 border-dashed border-slate-300 rounded-xl text-slate-500 text-sm">
                         Belum ada barang dipilih. Silakan pilih menu tambah di bawah ini.
                       </div>
                     ) : (
@@ -537,75 +537,70 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                         {orderedItems.map((item) => (
                           <div
                             key={item.product.id}
-                            className="flex items-center justify-between p-3.5 bg-brand-primary/10 border border-brand-secondary/20 hover:border-brand-secondary/40 rounded-lg transition-all"
+                            className="flex items-center space-x-4 p-4 bg-white border-2 border-slate-200 hover:border-[#1e5631]/30 rounded-xl transition-all"
                             id={`order-item-row-${item.product.id}`}
                           >
-                            <div className="flex items-center space-x-3 min-w-0 flex-grow pr-2">
-                              {/* Small thumb */}
-                              <img
-                                src={item.product.image}
-                                alt={item.product.name}
-                                className="w-12 h-12 rounded object-cover border border-brand-secondary/30 shrink-0"
-                              />
-                              <div className="min-w-0">
-                                <h4 className="font-heading font-extrabold text-xs text-gray-100 truncate uppercase tracking-wide">
-                                  {item.product.name}
-                                </h4>
-                                <span className="text-[10px] text-gray-400 block font-mono">
-                                  {item.product.packaging || "Kemasan Standar"} &bull; Rp {item.product.price.toLocaleString('id-ID')}
+                            {/* Thumbnail */}
+                            <img
+                              src={item.product.image}
+                              alt={item.product.name}
+                              className="w-16 h-16 rounded-lg object-cover border border-slate-200 flex-shrink-0"
+                            />
+                            
+                            <div className="flex-grow min-w-0">
+                              <h4 className="font-bold text-sm text-slate-800 truncate uppercase">
+                                {item.product.name}
+                              </h4>
+                              <span className="text-xs text-slate-500 block">
+                                {item.product.packaging || "Kemasan Standar"} • Rp {item.product.price.toLocaleString('id-ID')}
+                              </span>
+                              {item.quantity > 1 && (
+                                <span className="text-xs text-[#ea580c] block font-bold mt-1">
+                                  Subtotal: Rp {(item.product.price * item.quantity).toLocaleString('id-ID')}
                                 </span>
-                                {item.quantity > 1 && (
-                                  <span className="text-[10px] text-brand-accent block font-mono font-bold mt-0.5">
-                                    Subtotal: Rp {(item.product.price * item.quantity).toLocaleString('id-ID')}
-                                  </span>
-                                )}
-                              </div>
+                              )}
                             </div>
 
-                            {/* Quantity Editor Controls */}
-                            <div className="flex items-center space-x-3 shrink-0">
-                              <div className="flex items-center bg-brand-dark border border-brand-secondary/40 rounded overflow-hidden flex-row">
-                                <button
-                                  type="button"
-                                  onClick={() => handleUpdateQuantity(item.product.id, item.quantity - 1)}
-                                  className="px-2 py-1.5 text-gray-400 hover:text-brand-accent hover:bg-brand-primary/20 transition-colors"
-                                  aria-label="Kurang satu"
-                                >
-                                  <Minus className="w-3.5 h-3.5" />
-                                </button>
-                                <input
-                                  type="text"
-                                  value={item.quantity}
-                                  onChange={(e) => handleUpdateQuantity(item.product.id, parseInt(e.target.value) || 1)}
-                                  className="w-10 bg-transparent text-center text-xs font-bold text-white focus:outline-none border-x border-brand-secondary/25"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleUpdateQuantity(item.product.id, item.quantity + 1)}
-                                  className="px-2 py-1.5 text-gray-400 hover:text-brand-accent hover:bg-brand-primary/20 transition-colors"
-                                  aria-label="Tambah satu"
-                                >
-                                  <Plus className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-
-                              {/* Remove Item completely */}
+                            {/* Quantity Controls */}
+                            <div className="flex items-center space-x-2 flex-shrink-0">
                               <button
                                 type="button"
-                                onClick={() => handleRemoveItem(item.product.id)}
-                                className="text-gray-500 hover:text-red-400 p-2 rounded hover:bg-brand-primary/15 transition-colors"
-                                title="Hapus dari daftar"
+                                onClick={() => handleUpdateQuantity(item.product.id, item.quantity - 1)}
+                                className="w-8 h-8 bg-white border-2 border-slate-200 hover:border-[#1e5631] rounded-lg flex items-center justify-center text-slate-600 hover:text-[#1e5631] transition-all"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Minus className="w-4 h-4" />
+                              </button>
+                              <input
+                                type="text"
+                                value={item.quantity}
+                                onChange={(e) => handleUpdateQuantity(item.product.id, parseInt(e.target.value) || 1)}
+                                className="w-12 bg-white border-2 border-slate-200 text-center text-sm font-bold text-slate-800 focus:outline-none focus:border-[#1e5631] rounded-lg py-1.5"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateQuantity(item.product.id, item.quantity + 1)}
+                                className="w-8 h-8 bg-white border-2 border-slate-200 hover:border-[#1e5631] rounded-lg flex items-center justify-center text-slate-600 hover:text-[#1e5631] transition-all"
+                              >
+                                <Plus className="w-4 h-4" />
                               </button>
                             </div>
+
+                            {/* Remove Button */}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(item.product.id)}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                              title="Hapus dari daftar"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
                           </div>
                         ))}
 
-                        {/* Grand Total Display */}
-                        <div className="mt-4 p-3.5 bg-brand-secondary/15 border border-brand-secondary/30 rounded-lg flex items-center justify-between text-xs font-semibold text-white shadow-inner">
-                          <span className="uppercase font-mono tracking-widest text-gray-300">Total Estimasi Harga</span>
-                          <span className="text-sm font-heading font-black text-brand-accent">
+                        {/* Grand Total */}
+                        <div className="mt-4 p-4 bg-gradient-to-r from-[#1e5631] to-[#164226] border border-[#1e5631] rounded-xl flex items-center justify-between shadow-lg">
+                          <span className="uppercase text-xs font-bold text-white/90 tracking-wider">Total Estimasi Harga</span>
+                          <span className="text-lg font-bold text-white">
                             Rp {orderedItems.reduce((acc, curr) => acc + (curr.product.price * curr.quantity), 0).toLocaleString('id-ID')}
                           </span>
                         </div>
@@ -613,16 +608,16 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                     )}
                   </div>
 
-                  {/* Add More Items Panel inside Cart */}
-                  <div className="p-4 bg-brand-primary/15 border border-brand-secondary/20 rounded-xl space-y-3">
-                    <span className="text-[10px] font-mono tracking-widest text-[#eeeeee] block uppercase font-bold">
-                      ➕ TAMBAH BARANG LAIN KE DAFTAR PESANAN
+                  {/* Add More Items Panel */}
+                  <div className="p-4 bg-white border-2 border-slate-200 rounded-xl space-y-3">
+                    <span className="text-xs font-bold text-[#1e5631] block uppercase tracking-wider">
+                      ➕ Tambah Barang Lain ke Daftar Pesanan
                     </span>
                     <div className="flex gap-2.5">
                       <select
                         value={targetProductToAdd}
                         onChange={(e) => setTargetProductToAdd(e.target.value)}
-                        className="flex-grow bg-brand-dark border border-brand-secondary/40 rounded p-2.5 text-xs text-white focus:outline-none cursor-pointer"
+                        className="flex-grow bg-white border-2 border-slate-200 rounded-lg p-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#1e5631] cursor-pointer"
                       >
                         <option value="">-- Cari & Pilih Produk Lain --</option>
                         {availableToAddNew.map((prod) => (
@@ -635,74 +630,79 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                         type="button"
                         onClick={handleAddAdditionalProduct}
                         disabled={!targetProductToAdd}
-                        className="inline-flex items-center space-x-1 bg-brand-accent hover:bg-brand-accent/90 disabled:bg-brand-accent/40 text-brand-dark font-heading font-black text-xs px-4 py-2.5 rounded transition-all uppercase shrink-0 cursor-pointer"
+                        className="inline-flex items-center space-x-1.5 bg-[#ea580c] hover:bg-[#ea580c]/90 disabled:bg-slate-300 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-all uppercase flex-shrink-0 cursor-pointer"
                       >
-                        <PlusCircle className="w-3.5 h-3.5" />
-                        <span>TAMBAH</span>
+                        <PlusCircle className="w-4 h-4" />
+                        <span>Tambah</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Customer Checkout Delivery Information */}
+                  {/* Customer Information Form */}
                   <form onSubmit={handleSendWAWholeOrder} className="space-y-4 pt-2">
-                    <span className="text-[10px] font-mono tracking-widest text-brand-accent block uppercase font-bold">
-                      INFO DETAIL PENERIMA & LOKASI PENGIRIMAN
+                    <span className="text-xs font-bold text-[#ea580c] block uppercase tracking-wider">
+                      Info Detail Penerima & Lokasi Pengiriman
                     </span>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-mono text-gray-400 block">NAMA PENERIMA *</label>
+                        <label className="text-xs font-bold text-slate-700 block uppercase tracking-wide">
+                          Nama Penerima <span className="text-red-500">*</span>
+                        </label>
                         <input
                           type="text"
                           required
                           placeholder="Nama lengkap Anda..."
                           value={customerName}
                           onChange={(e) => setCustomerName(e.target.value)}
-                          className="w-full bg-brand-dark border border-brand-secondary/40 focus:border-brand-accent rounded p-2.5 text-xs text-white placeholder-gray-500 focus:outline-none transition-colors"
+                          className="w-full bg-white border-2 border-slate-200 focus:border-[#1e5631] rounded-lg p-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1e5631]/20 transition-all"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-mono text-gray-400 block">KOTA & PROVINSI TUJUAN *</label>
+                        <label className="text-xs font-bold text-slate-700 block uppercase tracking-wide">
+                          Kota & Provinsi Tujuan <span className="text-red-500">*</span>
+                        </label>
                         <input
                           type="text"
                           required
                           placeholder="Contoh: Denpasar, Bali"
                           value={customerAddress}
                           onChange={(e) => setCustomerAddress(e.target.value)}
-                          className="w-full bg-brand-dark border border-brand-secondary/40 focus:border-brand-accent rounded p-2.5 text-xs text-white placeholder-gray-500 focus:outline-none transition-colors"
+                          className="w-full bg-white border-2 border-slate-200 focus:border-[#1e5631] rounded-lg p-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1e5631]/20 transition-all"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-mono text-gray-400 block font-normal">CATATAN TAMBAHAN (OPSIONAL)</label>
+                      <label className="text-xs font-bold text-slate-700 block uppercase tracking-wide">
+                        Catatan Tambahan (Opsional)
+                      </label>
                       <textarea
                         rows={2}
                         placeholder="Contoh: Kirim secepatnya / Minta kargo laut termurah..."
                         value={customerNotes}
                         onChange={(e) => setCustomerNotes(e.target.value)}
-                        className="w-full bg-brand-dark border border-brand-secondary/40 focus:border-brand-accent rounded p-2.5 text-xs text-white placeholder-gray-500 focus:outline-none transition-colors resize-none"
+                        className="w-full bg-white border-2 border-slate-200 focus:border-[#1e5631] rounded-lg p-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1e5631]/20 transition-all resize-none"
                       />
                     </div>
 
-                    {/* Submit Order Details directly to WA */}
-                    <div className="pt-4 border-t border-brand-secondary/15 flex flex-col sm:flex-row gap-3">
+                    {/* Submit Buttons */}
+                    <div className="pt-4 border-t-2 border-slate-200 flex flex-col sm:flex-row gap-3">
                       <button
                         type="button"
                         onClick={() => setIsOrderFormOpen(false)}
-                        className="w-full sm:w-1/3 bg-transparent hover:bg-white/5 text-gray-400 hover:text-white border border-brand-secondary/45 py-3.5 px-4 rounded text-xs font-heading font-bold tracking-widest uppercase transition-colors cursor-pointer"
+                        className="w-full sm:w-1/3 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border-2 border-slate-300 py-3.5 px-4 rounded-lg text-xs font-bold tracking-wider uppercase transition-colors cursor-pointer"
                       >
                         Batal
                       </button>
                       <button
                         type="submit"
-                        className="w-full sm:w-2/3 inline-flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white font-heading font-black tracking-widest text-xs py-3.5 px-4 rounded transition-all uppercase shadow-lg shadow-emerald-500/10 active:scale-95 cursor-pointer"
+                        className="w-full sm:w-2/3 inline-flex items-center justify-center space-x-2 bg-[#25d366] hover:bg-[#25d366]/90 text-white font-bold tracking-wider text-xs py-3.5 px-4 rounded-lg transition-all uppercase shadow-lg shadow-green-500/20 active:scale-95 cursor-pointer"
                       >
-                        <Phone className="w-4 h-4 text-white animate-bounce" />
-                        <span>KIRIM RINCIAN KE WHATSAPP</span>
+                        <Phone className="w-4 h-4 text-white animate-pulse" />
+                        <span>Kirim Rincian ke WhatsApp</span>
                       </button>
                     </div>
-
                   </form>
                 </div>
               </motion.div>
