@@ -182,17 +182,21 @@ export default function CartPage({ onBack }: CartPageProps) {
 
         <div className="bg-white rounded-b-2xl shadow-2xl p-8">
           <div className="space-y-6">
-            {cartItems.map((item) => (
-              <div
-                key={item.product.id}
-                className="flex items-center space-x-4 p-4 bg-slate-50 rounded-xl border-2 border-slate-200 hover:border-brand-accent/50 transition-all"
-              >
-                <img
-                  src={item.product.image}
-                  alt={item.product.name}
-                  className="w-20 h-20 object-cover rounded-lg bg-white border border-slate-200"
-                />
+          {cartItems.map((item) => (
+            <div
+              key={item.product.id}
+              className="flex flex-col sm:flex-row items-start sm:items-center p-4 bg-slate-50 rounded-xl border-2 border-slate-200 hover:border-brand-accent/50 transition-all gap-4"
+            >
+              {/* Gambar Produk */}
+              <img
+                src={item.product.image}
+                alt={item.product.name}
+                className="w-full sm:w-20 h-32 sm:h-20 object-cover rounded-lg bg-white border border-slate-200 flex-shrink-0"
+              />
 
+              {/* Info Produk & Quantity Control */}
+              <div className="flex-grow min-w-0 flex flex-col sm:flex-row sm:items-center gap-3 w-full">
+                {/* Nama & Kategori */}
                 <div className="flex-grow min-w-0">
                   <h3 className="text-sm font-bold text-slate-800 truncate">
                     {item.product.name}
@@ -203,7 +207,8 @@ export default function CartPage({ onBack }: CartPageProps) {
                   </p>
                 </div>
 
-                <div className="flex items-center space-x-2">
+                {/* Quantity Control */}
+                <div className="flex items-center space-x-2 flex-shrink-0">
                   <button
                     onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
                     className="w-8 h-8 bg-white border-2 border-slate-200 hover:border-brand-accent rounded-lg flex items-center justify-center text-slate-600 hover:text-brand-accent transition-all"
@@ -221,21 +226,24 @@ export default function CartPage({ onBack }: CartPageProps) {
                   </button>
                 </div>
 
-                <div className="text-right min-w-[100px]">
+                {/* Subtotal */}
+                <div className="text-right min-w-[100px] flex-shrink-0">
                   <p className="text-xs text-slate-500 mb-1">Subtotal</p>
                   <p className="text-sm font-bold text-slate-800">
                     Rp {(item.product.price * item.quantity).toLocaleString('id-ID')}
                   </p>
                 </div>
 
+                {/* Tombol Hapus */}
                 <button
                   onClick={() => removeFromCart(item.product.id)}
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all flex-shrink-0"
                 >
                   <Trash2 className="w-5 h-5" />
                 </button>
               </div>
-            ))}
+            </div>
+          ))}
           </div>
 
           {/* ✅ FORM INFORMASI PELANGGAN & PENGIRIMAN (GUEST CHECKOUT) */}
