@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingCart, ShoppingBag, ExternalLink, Phone, CheckCircle2, X, Plus, Minus, Trash2, PlusCircle } from 'lucide-react';
+import { ShoppingCart, ShoppingBag, ExternalLink, CheckCircle2, X, Plus, Minus, Trash2, PlusCircle } from 'lucide-react';
 import { BUSINESS_INFO } from '../data';
 import { Product } from '../types';
 import { supabase } from '@/lib/supabaseClient'
@@ -27,11 +27,9 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  // ✅ STATE BARU: Data produk dari API
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
-  // Cart/Order list states
   const [orderedItems, setOrderedItems] = useState<OrderItem[]>([]);
   const [isOrderFormOpen, setIsOrderFormOpen] = useState(false);
   const [customerName, setCustomerName] = useState('');
@@ -41,7 +39,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
 
   const categories = ['Semua', 'PEMBASMI HAMA GUDANG', 'PEMBASMI NYAMUK LALAT', 'PEMBASMI RAYAP', 'PEMBASMI TIKUS', 'ALAT PEMBASMI HAMA'];
 
-  // ✅ EFEK BARU: Fetch data produk dari API backend
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -63,7 +60,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
     fetchProducts();
   }, []);
 
-  // Handle URL Category synchronisation
   useEffect(() => {
     const parseUrlCategory = () => {
       const pathname = window.location.pathname;
@@ -79,7 +75,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
     };
 
     parseUrlCategory();
-
     window.addEventListener('popstate', parseUrlCategory);
     return () => {
       window.removeEventListener('popstate', parseUrlCategory);
@@ -97,7 +92,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
     }
   };
 
-  // ✅ UBAH: Gunakan state 'products' bukan 'PRODUCTS' statis
   const filteredProducts = selectedCategory === 'Semua'
     ? products
     : products.filter(p => p.category === selectedCategory);
@@ -114,7 +108,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
     setIsOrderFormOpen(true);
   };
 
-  // Listen to forced orders from detail views external to the catalog
   useEffect(() => {
     if (forcedOpenOrderWithProduct) {
       handleStartOrder(forcedOpenOrderWithProduct);
@@ -172,18 +165,16 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
       itemsText += `${idx + 1}. *${item.product.name}*\n   - Kategori: ${item.product.category}\n   - Kemasan: ${item.product.packaging || 'Default'}\n   - Harga Satuan: Rp ${item.product.price.toLocaleString('id-ID')}\n   - Jumlah Qty: *${item.quantity}*\n   - Subtotal: Rp ${itemSubtotal.toLocaleString('id-ID')}\n\n`;
     });
 
-    const fullMessage = `Halo Tani Makmur Bersama,\n\nSaya ingin memesan produk berikut via WhatsApp Direct:\n\n${itemsText}*Total Estimasi Harga:* Rp ${grandTotal.toLocaleString('id-ID')}\n\n*Detail Penerima:*\n- *Nama:* ${customerName}\n- *Alamat:* ${customerAddress}\n- *Catatan:* ${customerNotes || '-'}\n\nMohon bantu siapkan rincian harga utama dan estimasi biaya kargo pengiriman. Terima kasih!`;
+    const fullMessage = `Halo Tani Makmur Bersama,\n\nSaya ingin memesan produk berikut:\n\n${itemsText}*Total Estimasi Harga:* Rp ${grandTotal.toLocaleString('id-ID')}\n\n*Detail Penerima:*\n- *Nama:* ${customerName}\n- *Alamat:* ${customerAddress}\n- *Catatan:* ${customerNotes || '-'}\n\nMohon bantu siapkan rincian harga utama dan estimasi biaya kargo pengiriman. Terima kasih!`;
     
     const waUrl = `https://wa.me/628155071697?text=${encodeURIComponent(fullMessage)}`;
     window.open(waUrl, '_blank');
   };
 
-  // ✅ UBAH: Gunakan state 'products' bukan 'PRODUCTS' statis
   const availableToAddNew = products.filter(
     p => !orderedItems.some(item => item.product.id === p.id)
   );
 
-  // ✅ Loading state saat fetch data
   if (loadingProducts) {
     return (
       <section id="produk" className="py-24 sm:py-32 bg-brand-dark border-t border-brand-secondary/10 relative">
@@ -237,7 +228,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
           ))}
         </div>
         
-        {/* ✅ Tampilkan pesan jika tidak ada produk */}
         {filteredProducts.length === 0 ? (
           <div className="text-center py-16 border border-dashed border-brand-secondary/30 rounded-xl">
             <p className="text-gray-400 text-lg">Tidak ada produk di kategori "{selectedCategory}"</p>
@@ -253,7 +243,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                 className="group flex flex-col bg-white border border-brand-secondary/10 hover:border-brand-accent rounded-lg overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md"
                 id={`product-card-${product.id}`}
               >
-                  {/* Product Image Area */}
                   <div className="relative h-56 sm:h-64 overflow-hidden bg-slate-100">
                     <img
                       src={product.image}
@@ -266,7 +255,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                     </div>
                   </div>
 
-                  {/* Content Area */}
                   <div className="p-6 flex-grow flex flex-col justify-between space-y-6">
                     <div className="space-y-3">
                       <h3 className="font-heading font-extrabold text-slate-800 group-hover:text-brand-accent transition-colors text-base sm:text-lg tracking-wide uppercase line-clamp-1">
@@ -276,7 +264,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                         {product.description}
                       </p>
                       
-                      {/* Compact Specs summary */}
                       <div className="pt-2 flex flex-wrap gap-2 text-[10px]">
                         {product.pestTarget && (
                           <span className="bg-brand-primary text-slate-700 px-2.5 py-1 rounded border border-brand-secondary/10">
@@ -290,7 +277,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                         )}
                       </div>
 
-                      {/* Price display tag */}
                       <div className="pt-3 border-t border-brand-secondary/15 flex items-center justify-between">
                         <span className="text-[10px] font-mono tracking-wider text-slate-500 uppercase">
                           Harga
@@ -301,29 +287,20 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                       </div>
                     </div>
 
-                    {/* Buttons Action */}
-                    <div className="grid grid-cols-2 gap-3 pt-4 border-t border-brand-secondary/10">
-                      <button
-                        onClick={() => {
-                          if (onProductClick) {
-                            onProductClick(product);
-                          } else {
-                            setSelectedProduct(product);
-                          }
-                        }}
-                        className="inline-flex items-center justify-center bg-brand-primary hover:bg-brand-secondary text-brand-secondary hover:text-white border border-brand-secondary/20 py-2.5 px-3 rounded-sm text-[10px] font-heading font-bold tracking-widest uppercase transition-colors"
-                        id={`btn-product-detail-${product.id}`}
-                      >
-                        LIHAT DETIL
-                      </button>
-                      <button
-                        onClick={() => handleStartOrder(product)}
-                        className="inline-flex items-center justify-center space-x-1.5 bg-brand-accent text-white hover:bg-brand-accent/90 py-2.5 px-3 rounded-sm text-[10px] font-heading font-black tracking-widest uppercase cursor-pointer"
-                        id={`btn-product-wa-${product.id}`}
-                      >
-                        <Phone className="w-3.5 h-3.5 fill-current text-white animate-pulse" />
-                        <span>BELI SEKARANG</span>
-                      </button>
+                    {/* ✅ Buttons Action: HANYA Lihat Detil & Tambah ke Keranjang */}
+                    <div className="pt-4 border-t border-brand-secondary/10">
+                    <button
+                      onClick={() => {
+                        if (onProductClick) {
+                          onProductClick(product);
+                        } else {
+                          setSelectedProduct(product);
+                        }
+                      }}
+                      className="w-full inline-flex items-center justify-center bg-brand-primary hover:bg-brand-secondary text-brand-secondary hover:text-white border border-brand-secondary/20 py-2.5 px-3 rounded-sm text-[10px] font-heading font-bold tracking-widest uppercase transition-colors"
+                    >
+                      LIHAT DETIL
+                    </button>
                     </div>
                   </div>
               </div>
@@ -350,11 +327,9 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                 className="bg-zinc-950/98 border border-brand-secondary/40 w-full max-w-3xl rounded-xl overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Close Button */}
                 <button
                   onClick={() => setSelectedProduct(null)}
                   className="absolute top-4 right-4 z-10 text-gray-400 hover:text-brand-accent p-2 rounded bg-brand-primary/20 border border-brand-secondary/35 focus:outline-none"
-                  id="btn-close-modal"
                   aria-label="Close modal"
                 >
                   <X className="w-5 h-5" />
@@ -362,8 +337,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
 
                 <div className="overflow-y-auto flex-grow">
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-6 p-6 sm:p-8">
-                    
-                    {/* Left image area */}
                     <div className="md:col-span-5 relative h-64 md:h-full min-h-[250px] rounded-lg overflow-hidden bg-brand-primary/10 flex items-center justify-center">
                       <img
                         src={selectedProduct.image}
@@ -376,7 +349,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                       </div>
                     </div>
 
-                    {/* Right core info text */}
                     <div className="md:col-span-7 flex flex-col justify-between space-y-6">
                       <div className="space-y-4">
                         <h3 className="text-xl sm:text-2xl font-heading font-black text-brand-accent tracking-wide uppercase leading-snug">
@@ -421,51 +393,44 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                         </div>
                       </div>
 
-                      {/* Store Redirect Options */}
+                      {/* ✅ Store Redirect Options: HANYA Tambah ke Keranjang & Marketplace */}
                       <div className="pt-6 border-t border-brand-secondary/20 space-y-4">
                         <span className="text-[10px] font-mono tracking-widest text-brand-accent block uppercase">
-                          BELI DI MEDIA LAPAK RESMI BERSERTIFIKAT
+                          PILIH SALURAN PEMBELIAN
                         </span>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <button
-                            onClick={() => {
-                              const p = selectedProduct;
-                              setSelectedProduct(null);
-                              handleStartOrder(p);
-                            }}
-                            className="inline-flex items-center justify-center space-x-2 bg-[#25d366]/10 hover:bg-[#25d366] text-[#25d366] hover:text-brand-dark font-extrabold text-xs py-3 rounded uppercase border border-[#25d366]/40 transition-colors cursor-pointer"
-                          >
-                            <Phone className="w-4 h-4 text-inherit animate-pulse" />
-                            <span>PESAN VIA WA DIRECT</span>
-                          </button>
-                          <a
-                            href={BUSINESS_INFO.shopeeUrl1}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center justify-center space-x-2 bg-[#ee4d2d]/10 hover:bg-[#ee4d2d] text-[#ee4d2d] hover:text-white font-extrabold text-xs py-3 rounded uppercase border border-[#ee4d2d]/40 transition-colors"
-                          >
-                            <ShoppingBag className="w-4 h-4 text-inherit" />
-                            <span>SHOPEE LAPAK UTAMA</span>
-                          </a>
-                          <a
-                            href={BUSINESS_INFO.shopeeUrl2}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center justify-center space-x-2 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-300 hover:text-white font-extrabold text-xs py-3 rounded uppercase border border-emerald-500/40 transition-colors"
-                          >
-                            <ShoppingCart className="w-4 h-4 text-inherit" />
-                            <span>SHOPEE LAPAK MITRA</span>
-                          </a>
-                          <a
-                            href={BUSINESS_INFO.lazadaUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center justify-center space-x-2 bg-[#000080]/10 hover:bg-[#000080] text-[#000080] hover:text-white font-extrabold text-xs py-3 rounded uppercase border border-[#000080]/40 transition-colors"
-                          >
-                            <ExternalLink className="w-4 h-4 text-inherit" />
-                            <span>LAZADA OFFICIAL</span>
-                          </a>
+                        <div className="space-y-3">
+
+                          {/* 2. Marketplace Links */}
+                          <div className="grid grid-cols-3 gap-3 pt-2">
+                            <a
+                              href={BUSINESS_INFO.shopeeUrl1}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center justify-center space-x-1 bg-[#ee4d2d]/10 hover:bg-[#ee4d2d] text-[#ee4d2d] hover:text-white font-extrabold text-[10px] py-2.5 rounded uppercase border border-[#ee4d2d]/40 transition-colors"
+                            >
+                              <ShoppingBag className="w-3.5 h-3.5" />
+                              <span>SHOPEE 1</span>
+                            </a>
+                            <a
+                              href={BUSINESS_INFO.shopeeUrl2}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center justify-center space-x-1 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-600 hover:text-white font-extrabold text-[10px] py-2.5 rounded uppercase border border-emerald-500/40 transition-colors"
+                            >
+                              <ShoppingCart className="w-3.5 h-3.5" />
+                              <span>SHOPEE 2</span>
+                            </a>
+                            <a
+                              href={BUSINESS_INFO.lazadaUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center justify-center space-x-1 bg-[#000080]/10 hover:bg-[#000080] text-[#000080] hover:text-white font-extrabold text-[10px] py-2.5 rounded uppercase border border-[#000080]/40 transition-colors"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span>LAZADA</span>
+                            </a>
+                          </div>
                         </div>
                       </div>
 
@@ -497,7 +462,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                 className="bg-white border border-slate-200 w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Header dengan tema hijau */}
                 <div className="flex items-center justify-between p-6 bg-gradient-to-r from-[#1e5631] to-[#164226] text-white">
                   <div className="flex items-center space-x-3">
                     <div className="bg-white/20 backdrop-blur-sm p-2.5 rounded-lg">
@@ -508,7 +472,7 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                         Form Jumlah Pesanan
                       </h3>
                       <p className="text-xs text-white/80 mt-0.5">
-                        Ubah Jumlah, Tambah Barang & Kirim WA Direct
+                        Ubah Jumlah, Tambah Barang & Kirim Pesanan
                       </p>
                     </div>
                   </div>
@@ -522,7 +486,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                 </div>
 
                 <div className="overflow-y-auto p-6 space-y-6 flex-grow bg-slate-50">
-                  {/* Current Items List */}
                   <div className="space-y-4">
                     <span className="text-xs font-bold text-[#1e5631] block uppercase tracking-wider">
                       Daftar Belanja ({orderedItems.length} Barang)
@@ -538,9 +501,7 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                           <div
                             key={item.product.id}
                             className="flex items-center space-x-4 p-4 bg-white border-2 border-slate-200 hover:border-[#1e5631]/30 rounded-xl transition-all"
-                            id={`order-item-row-${item.product.id}`}
                           >
-                            {/* Thumbnail */}
                             <img
                               src={item.product.image}
                               alt={item.product.name}
@@ -561,7 +522,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                               )}
                             </div>
 
-                            {/* Quantity Controls */}
                             <div className="flex items-center space-x-2 flex-shrink-0">
                               <button
                                 type="button"
@@ -585,7 +545,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                               </button>
                             </div>
 
-                            {/* Remove Button */}
                             <button
                               type="button"
                               onClick={() => handleRemoveItem(item.product.id)}
@@ -597,7 +556,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                           </div>
                         ))}
 
-                        {/* Grand Total */}
                         <div className="mt-4 p-4 bg-gradient-to-r from-[#1e5631] to-[#164226] border border-[#1e5631] rounded-xl flex items-center justify-between shadow-lg">
                           <span className="uppercase text-xs font-bold text-white/90 tracking-wider">Total Estimasi Harga</span>
                           <span className="text-lg font-bold text-white">
@@ -608,7 +566,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                     )}
                   </div>
 
-                  {/* Add More Items Panel */}
                   <div className="p-4 bg-white border-2 border-slate-200 rounded-xl space-y-3">
                     <span className="text-xs font-bold text-[#1e5631] block uppercase tracking-wider">
                       ➕ Tambah Barang Lain ke Daftar Pesanan
@@ -638,7 +595,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                     </div>
                   </div>
 
-                  {/* Customer Information Form */}
                   <form onSubmit={handleSendWAWholeOrder} className="space-y-4 pt-2">
                     <span className="text-xs font-bold text-[#ea580c] block uppercase tracking-wider">
                       Info Detail Penerima & Lokasi Pengiriman
@@ -686,7 +642,6 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                       />
                     </div>
 
-                    {/* Submit Buttons */}
                     <div className="pt-4 border-t-2 border-slate-200 flex flex-col sm:flex-row gap-3">
                       <button
                         type="button"
@@ -697,10 +652,10 @@ export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProd
                       </button>
                       <button
                         type="submit"
-                        className="w-full sm:w-2/3 inline-flex items-center justify-center space-x-2 bg-[#25d366] hover:bg-[#25d366]/90 text-white font-bold tracking-wider text-xs py-3.5 px-4 rounded-lg transition-all uppercase shadow-lg shadow-green-500/20 active:scale-95 cursor-pointer"
+                        className="w-full sm:w-2/3 inline-flex items-center justify-center space-x-2 bg-[#1e5631] hover:bg-[#164226] text-white font-bold tracking-wider text-xs py-3.5 px-4 rounded-lg transition-all uppercase shadow-lg shadow-green-500/20 active:scale-95 cursor-pointer"
                       >
-                        <Phone className="w-4 h-4 text-white animate-pulse" />
-                        <span>Kirim Rincian ke WhatsApp</span>
+                        <ShoppingCart className="w-4 h-4 text-white" />
+                        <span>Kirim Pesanan</span>
                       </button>
                     </div>
                   </form>

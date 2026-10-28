@@ -4,7 +4,6 @@ import {
   ArrowLeft, 
   CheckCircle2, 
   ChevronRight, 
-  Phone, 
   ShoppingBag, 
   ShoppingCart, 
   ExternalLink, 
@@ -13,13 +12,13 @@ import {
   Zap, 
   Truck, 
   CheckCircle,
-  AlertTriangle, // ✅ TAMBAHKAN
-  XCircle        // ✅ TAMBAHKAN
+  AlertTriangle,
+  XCircle
 } from 'lucide-react';
 import { Product } from '../types';
 import { BUSINESS_INFO } from '../data';
 import { useCart } from '../components/CartContext';
-import { supabase } from '@/lib/supabaseClient'; // ✅ TAMBAHKAN INI
+import { supabase } from '@/lib/supabaseClient';
 
 interface ProductDetailPageProps {
   product: Product;
@@ -29,7 +28,7 @@ interface ProductDetailPageProps {
 }
 
 // ==========================================
-// KOMPONEN SECTION TITLE (Style Gambar 1)
+// KOMPONEN SECTION TITLE
 // ==========================================
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   <div className="flex items-center gap-3 mb-5">
@@ -41,12 +40,11 @@ const SectionTitle = ({ children }: { children: React.ReactNode }) => (
 );
 
 // ==========================================
-// PARSER DESKRIPSI TERSTRUKTUR (Style Gambar 1)
+// PARSER DESKRIPSI TERSTRUKTUR
 // ==========================================
 const renderStructuredDescription = (description: string) => {
   if (!description) return null;
 
-  // Split berdasarkan pola **TITLE**
   const sections = description.split(/\*\*(.*?)\*\*/g);
   const elements: React.JSX.Element[] = [];
   let i = 0;
@@ -59,7 +57,6 @@ const renderStructuredDescription = (description: string) => {
       continue;
     }
 
-    // Cek apakah ini judul section (pattern: **TITLE**)
     if (i % 2 === 1 && text.length > 0) {
       const title = text;
       const content = sections[i + 1]?.trim() || '';
@@ -67,14 +64,11 @@ const renderStructuredDescription = (description: string) => {
       elements.push(
         <div key={`section-${i}`} className="mb-8">
           <SectionTitle>{title}</SectionTitle>
-          
-          {/* Render content berdasarkan tipe */}
           <div className="space-y-3">
             {content.split('\n').map((line, idx) => {
               const trimmedLine = line.trim();
               if (!trimmedLine) return null;
               
-              // List dengan bullet (✓ atau •)
               if (trimmedLine.startsWith('✓') || trimmedLine.startsWith('•')) {
                 return (
                   <div key={idx} className="flex items-start gap-3 p-4 bg-white border border-slate-200 rounded-lg hover:border-[#ea580c]/30 transition-colors">
@@ -88,21 +82,19 @@ const renderStructuredDescription = (description: string) => {
                 );
               }
               
-              // Numbered list
               if (/^\d+\.\s/.test(trimmedLine)) {
                 const num = trimmedLine.match(/^(\d+)\./)?.[1];
-                const text = trimmedLine.replace(/^\d+\.\s*/, '');
+                const textContent = trimmedLine.replace(/^\d+\.\s*/, '');
                 return (
                   <div key={idx} className="flex items-start gap-3 p-4 bg-white border border-slate-200 rounded-lg hover:border-[#ea580c]/30 transition-colors">
                     <div className="w-7 h-7 rounded-full bg-[#ea580c] text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
                       {num}
                     </div>
-                    <span className="text-sm text-slate-700 leading-relaxed flex-grow pt-0.5">{text}</span>
+                    <span className="text-sm text-slate-700 leading-relaxed flex-grow pt-0.5">{textContent}</span>
                   </div>
                 );
               }
               
-              // Paragraf biasa
               return (
                 <p key={idx} className="text-sm text-slate-700 leading-relaxed py-2">
                   {trimmedLine}
@@ -112,10 +104,8 @@ const renderStructuredDescription = (description: string) => {
           </div>
         </div>
       );
-      
       i += 2;
     } else {
-      // Teks biasa (sebelum judul pertama)
       if (text && i === 0) {
         elements.push(
           <div key={`intro-${i}`} className="mb-6">
@@ -150,7 +140,6 @@ export default function ProductDetailPage({ product, onBack, onNavigateToProduct
     setAddedToCart(false);
   }, [product]);
 
-  // ✅ PERBAIKAN: Ambil produk terkait langsung dari Supabase
   useEffect(() => {
     const fetchRelatedProducts = async () => {
       const { data, error } = await supabase
@@ -168,11 +157,6 @@ export default function ProductDetailPage({ product, onBack, onNavigateToProduct
     fetchRelatedProducts();
   }, [product.category, product.id]);
 
-  const getWhatsAppLink = () => {
-    const message = `Halo Tani Makmur Bersama, saya ingin bertanya lebih lanjut mengenai Produk: "${product.name}" (Rp ${product.price.toLocaleString('id-ID')}). Apakah stok produk masih tersedia?`;
-    return `https://wa.me/628155071697?text=${encodeURIComponent(message)}`;
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
@@ -182,7 +166,6 @@ export default function ProductDetailPage({ product, onBack, onNavigateToProduct
       className="pb-24 pt-28 bg-gradient-to-br from-slate-50 to-slate-100 relative min-h-screen text-slate-700 antialiased"
       id={`product-detail-page-${product.id}`}
     >
-      {/* Background Ambience */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-[radial-gradient(circle_at_top_right,rgba(22,101,52,0.08),transparent_60%)] pointer-events-none" />
       <div className="absolute top-1/3 left-0 w-80 h-80 bg-[radial-gradient(circle_at_bottom_left,rgba(234,88,12,0.05),transparent_60%)] pointer-events-none" />
 
@@ -260,37 +243,7 @@ export default function ProductDetailPage({ product, onBack, onNavigateToProduct
                   </span>
                 </div>
 
-                {/* Add to Cart Button */}
-                <button
-                  onClick={handleAddToCart}
-                  disabled={product.stok === 0}
-                  className={`inline-flex items-center space-x-2 px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wider transition-all shadow-lg ${
-                    product.stok === 0 
-                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                      : addedToCart
-                        ? 'bg-green-600 text-white'
-                        : 'bg-[#1e5631] hover:bg-[#164226] text-white'
-                  }`}
-                >
-                  {addedToCart ? (
-                    <>
-                      <CheckCircle2 className="w-5 h-5" />
-                      <span>DITAMBAHKAN</span>
-                    </>
-                  ) : product.stok === 0 ? (
-                    <>
-                      <XCircle className="w-5 h-5" />
-                      <span>STOK HABIS</span>
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart className="w-5 h-5" />
-                      <span>TAMBAH KE KERANJANG</span>
-                    </>
-                  )}
-                </button>
-
-                {/* ✅ PERBAIKAN: Indikator Stok Dinamis */}
+                {/* Indikator Stok Dinamis */}
                 {(product.stok ?? 0) > 10 ? (
                   <div className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
                     <CheckCircle className="w-3.5 h-3.5" />
@@ -344,28 +297,45 @@ export default function ProductDetailPage({ product, onBack, onNavigateToProduct
               </div>
             </div>
 
-            {/* Purchase CTA Channels */}
+            {/* ✅ Purchase CTA Channels - Tombol TAMBAH KE KERANJANG di sini */}
             <div className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-6">
               <div className="space-y-1">
                 <span className="text-[10px] font-mono tracking-widest text-brand-accent block uppercase font-bold">
                   SALURAN PEMBELIAN RESMI
                 </span>
                 <p className="text-xs text-slate-600">
-                  Pilih opsi pembelian via WhatsApp atau marketplace favorit Anda.
+                  Tambahkan ke keranjang untuk checkout atau beli melalui marketplace resmi kami.
                 </p>
               </div>
 
+              {/* ✅ TOMBOL TAMBAH KE KERANJANG - Dipindahkan ke sini */}
               <button
-                onClick={() => onOrderProduct(product)}
+                onClick={handleAddToCart}
                 disabled={product.stok === 0}
-                className={`inline-flex items-center justify-center font-heading font-black text-xs py-3.5 px-4 rounded-xl uppercase transition-all shadow-sm cursor-pointer w-full ${
+                className={`inline-flex items-center justify-center font-heading font-black text-sm py-4 px-6 rounded-xl uppercase transition-all shadow-lg cursor-pointer w-full ${
                   product.stok === 0 
                     ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
-                    : 'bg-[#1e5631] hover:bg-[#164226] text-white'
+                    : addedToCart
+                      ? 'bg-green-600 text-white'
+                      : 'bg-[#1e5631] hover:bg-[#164226] text-white hover:shadow-xl'
                 }`}
               >
-                <Phone className="w-4 h-4 mr-2" />
-                <span>{product.stok === 0 ? 'STOK HABIS' : 'BELI SEKARANG VIA WHATSAPP'}</span>
+                {addedToCart ? (
+                  <>
+                    <CheckCircle2 className="w-5 h-5 mr-2" />
+                    <span>BERHASIL DITAMBAHKAN</span>
+                  </>
+                ) : product.stok === 0 ? (
+                  <>
+                    <XCircle className="w-5 h-5 mr-2" />
+                    <span>STOK HABIS</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart className="w-5 h-5 mr-2" />
+                    <span>TAMBAH KE KERANJANG</span>
+                  </>
+                )}
               </button>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-200">
@@ -448,7 +418,7 @@ export default function ProductDetailPage({ product, onBack, onNavigateToProduct
                   </div>
                   
                   <div className="p-2 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-brand-accent group-hover:text-white transition-all shrink-0">
-                    <ArrowLeft className="w-4 h-4 rotate-180" />
+                    <ChevronRight className="w-4 h-4" />
                   </div>
                 </div>
               ))}
