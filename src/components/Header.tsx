@@ -14,6 +14,7 @@ const NAV = [
   { label: 'Belanja', path: '/produk', match: ['produk', 'detail'], mega: true },
   { label: 'Keunggulan', path: '/keunggulan', match: ['keunggulan'] },
   { label: 'Artikel', path: '/artikel', match: ['artikel', 'artikel-detail'] },
+  { label: 'Official Store', path: '/official-store', match: ['official-store'] },
   { label: 'Kontak', path: '/kontak', match: ['kontak'] },
 ];
 
@@ -168,7 +169,7 @@ export default function Header({ route }: HeaderProps) {
                 <span className="flex h-9 w-9 items-center justify-center bg-brand font-heading text-sm font-black text-white">
                   TM
                 </span>
-                <span className="hidden flex-col leading-none sm:flex">
+                <span className="hidden flex-col whitespace-nowrap leading-none sm:flex">
                   <span className="font-heading text-base font-black uppercase tracking-tight">Tani Makmur</span>
                   <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-muted">Bersama</span>
                 </span>
@@ -188,14 +189,14 @@ export default function Header({ route }: HeaderProps) {
                   >
                     <a
                       {...linkProps(item.path)}
-                      className={`flex items-center gap-1 px-4 text-[13px] font-bold uppercase tracking-wider transition-colors hover:text-brand ${
+                      className={`flex items-center gap-1 whitespace-nowrap px-2.5 text-[13px] font-bold uppercase tracking-wider xl:px-4 transition-colors hover:text-brand ${
                         active ? 'text-brand' : 'text-ink'
                       }`}
                     >
                       {item.label}
                       {item.mega && <ChevronDown className="h-3.5 w-3.5" />}
                     </a>
-                    {active && <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-brand" />}
+                    {active && <span className="absolute bottom-0 left-2.5 right-2.5 h-0.5 bg-brand xl:left-4 xl:right-4" />}
                   </div>
                 );
               })}

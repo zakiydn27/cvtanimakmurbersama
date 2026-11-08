@@ -3,42 +3,12 @@ import { Instagram, Mail, MapPin, MessageCircle, Clock } from 'lucide-react';
 import { BUSINESS_INFO, CATEGORIES } from '../data';
 import { categoryPath, linkProps } from '../router';
 
-const MARKETPLACES = [
-  { label: 'Shopee 1', url: BUSINESS_INFO.shopeeUrl1, color: '#EE4D2D' },
-  { label: 'Shopee 2', url: BUSINESS_INFO.shopeeUrl2, color: '#EE4D2D' },
-  { label: 'Tokopedia', url: BUSINESS_INFO.tokopediaUrl, color: '#03AC0E' },
-  { label: 'Lazada', url: BUSINESS_INFO.lazadaUrl, color: '#0F136E' },
-];
 
 export default function Footer() {
   const year = new Date().getFullYear();
 
   return (
     <footer className="bg-ink text-white">
-      {/* Strip marketplace */}
-      <div className="border-b border-white/10">
-        <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-4 px-4 py-8 sm:px-6 md:flex-row md:items-center lg:px-8">
-          <div>
-            <p className="font-heading text-lg font-extrabold uppercase">Belanja juga di marketplace resmi kami</p>
-            <p className="text-sm text-white/60">Produk asli langsung dari distributor.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {MARKETPLACES.map((m) => (
-              <a
-                key={m.label}
-                href={m.url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 border border-white/20 px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors hover:border-white hover:bg-white hover:text-ink"
-              >
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: m.color }} />
-                {m.label}
-              </a>
-            ))}
-          </div>
-        </div>
-      </div>
-
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-10 px-4 py-14 sm:px-6 md:grid-cols-12 lg:px-8">
         <div className="col-span-2 space-y-5 md:col-span-4">
           <a {...linkProps('/')} className="flex items-center gap-2.5">
@@ -79,6 +49,7 @@ export default function Footer() {
           <ul className="space-y-2.5 text-sm text-white/80">
             <li><a {...linkProps('/keunggulan')} className="hover:text-accent">Tentang Kami</a></li>
             <li><a {...linkProps('/artikel')} className="hover:text-accent">Artikel & Tips</a></li>
+            <li><a {...linkProps('/official-store')} className="hover:text-accent">Official Store</a></li>
             <li><a {...linkProps('/kontak')} className="hover:text-accent">Hubungi Kami</a></li>
             <li><a {...linkProps('/cart')} className="hover:text-accent">Keranjang</a></li>
           </ul>

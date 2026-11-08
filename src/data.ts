@@ -11,6 +11,9 @@ export const BUSINESS_INFO = {
   shopeeUrl2: "https://id.shp.ee/yu6j9V2",
   lazadaUrl: "https://lazada.co.id/shop/tani-makmur-bersama-tmb",
   tokopediaUrl: "https://www.tokopedia.com",
+  // Isi link toko resmi di bawah ini. Bila kosong, kartu tampil "Segera hadir".
+  tiktokShopUrl: "",
+  blibliUrl: "",
   instagramUrl: "https://www.instagram.com",
   email: "tmb.pestcontrol@gmail.com",
   address: "Denpasar, Bali, Indonesia",
@@ -68,3 +71,16 @@ export const ANNOUNCEMENTS = [
 ];
 
 export const formatRupiah = (value: number) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
+
+export type StoreLogo = 'whatsapp' | 'shopee' | 'tiktok' | 'tokopedia' | 'lazada' | 'blibli';
+
+// Daftar official store yang tampil di halaman /official-store
+export const OFFICIAL_STORES: { logo: StoreLogo; name: string; note?: string; url: string }[] = [
+  { logo: 'whatsapp', name: 'WhatsApp', note: 'Pesan langsung', url: BUSINESS_INFO.whatsappUrl },
+  { logo: 'shopee', name: 'Shopee', note: 'Toko 1', url: BUSINESS_INFO.shopeeUrl1 },
+  { logo: 'shopee', name: 'Shopee', note: 'Toko 2', url: BUSINESS_INFO.shopeeUrl2 },
+  { logo: 'tiktok', name: 'TikTok Shop', url: BUSINESS_INFO.tiktokShopUrl },
+  { logo: 'tokopedia', name: 'Tokopedia', url: BUSINESS_INFO.tokopediaUrl },
+  { logo: 'lazada', name: 'Lazada', url: BUSINESS_INFO.lazadaUrl },
+  { logo: 'blibli', name: 'Blibli', url: BUSINESS_INFO.blibliUrl },
+];

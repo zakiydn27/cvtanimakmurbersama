@@ -10,6 +10,7 @@ export type Route =
   | { name: 'artikel' }
   | { name: 'artikel-detail'; id: string }
   | { name: 'kontak' }
+  | { name: 'official-store' }
   | { name: 'cart' };
 
 export const slugify = (text: string) =>
@@ -43,6 +44,8 @@ export function parsePath(pathname: string): Route {
       return { name: 'keunggulan' };
     case 'kontak':
       return { name: 'kontak' };
+    case 'official-store':
+      return { name: 'official-store' };
     case 'cart':
     case 'keranjang':
       return { name: 'cart' };

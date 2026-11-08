@@ -228,19 +228,6 @@ export default function ProductDetailPage({ id }: { id: string }) {
             )}
           </div>
 
-          {/* Marketplace */}
-          <div className="mt-6 grid grid-cols-3 gap-2">
-            {[
-              ['Shopee', BUSINESS_INFO.shopeeUrl1],
-              ['Tokopedia', BUSINESS_INFO.tokopediaUrl],
-              ['Lazada', BUSINESS_INFO.lazadaUrl],
-            ].map(([label, url]) => (
-              <a key={label} href={url} target="_blank" rel="noreferrer" className="border border-line py-2.5 text-center text-[11px] font-bold uppercase tracking-wider hover:border-ink">
-                {label}
-              </a>
-            ))}
-          </div>
-
           {/* Jaminan */}
           <div className="mt-6 grid grid-cols-3 gap-2 bg-soft p-4 text-center">
             {[

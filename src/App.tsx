@@ -11,6 +11,7 @@ import ArticlesSection from './components/ArticlesSection';
 import ArticleDetailPage from './components/ArticleDetailPage';
 import ContactForm from './components/ContactForm';
 import CartPage from './components/CartPage';
+import OfficialStorePage from './components/OfficialStorePage';
 import { CartProvider, useCart } from './components/CartContext';
 import { BUSINESS_INFO, formatRupiah } from './data';
 import { Route, linkProps, useRoute } from './router';
@@ -31,6 +32,8 @@ function Page({ route }: { route: Route }) {
       return <ArticleDetailPage id={route.id} />;
     case 'kontak':
       return <ContactForm />;
+    case 'official-store':
+      return <OfficialStorePage />;
     case 'cart':
       return <CartPage />;
   }
