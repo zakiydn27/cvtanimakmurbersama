@@ -1,671 +1,214 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingCart, ShoppingBag, ExternalLink, CheckCircle2, X, Plus, Minus, Trash2, PlusCircle } from 'lucide-react';
-import { BUSINESS_INFO } from '../data';
-import { Product } from '../types';
-import { supabase } from '@/lib/supabaseClient'
-
-interface OrderItem {
-  product: Product;
-  quantity: number;
-}
-
-const slugifyCategory = (category: string) => {
-  return category
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)+/g, '');
-};
+import React, { useMemo, useState } from 'react';
+import { ChevronRight, Search, SlidersHorizontal, X } from 'lucide-react';
+import { CATEGORIES } from '../data';
+import { useProducts } from '../hooks/useProducts';
+import { categoryPath, linkProps, navigate } from '../router';
+import ProductCard, { ProductCardSkeleton } from './ProductCard';
 
 interface ProductKatalogProps {
-  onProductClick?: (product: Product) => void;
-  forcedOpenOrderWithProduct?: Product | null;
-  clearForcedOpenOrder?: () => void;
+  category: string | null;
 }
 
-export default function ProductKatalog({ onProductClick, forcedOpenOrderWithProduct, clearForcedOpenOrder }: ProductKatalogProps) {
-  const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+const SORTS = {
+  terbaru: 'Terbaru',
+  'harga-asc': 'Harga: Rendah ke Tinggi',
+  'harga-desc': 'Harga: Tinggi ke Rendah',
+  nama: 'Nama: A-Z',
+} as const;
+type SortKey = keyof typeof SORTS;
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(true);
+export default function ProductKatalog({ category }: ProductKatalogProps) {
+  const { products, loading } = useProducts();
+  const [sort, setSort] = useState<SortKey>('terbaru');
+  const [query, setQuery] = useState('');
+  const [readyOnly, setReadyOnly] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
 
-  const [orderedItems, setOrderedItems] = useState<OrderItem[]>([]);
-  const [isOrderFormOpen, setIsOrderFormOpen] = useState(false);
-  const [customerName, setCustomerName] = useState('');
-  const [customerAddress, setCustomerAddress] = useState('');
-  const [customerNotes, setCustomerNotes] = useState('');
-  const [targetProductToAdd, setTargetProductToAdd] = useState<string>('');
+  const current = CATEGORIES.find((c) => c.name === category);
+  const newIds = useMemo(() => new Set(products.slice(0, 4).map((p) => p.id)), [products]);
 
-  const categories = ['Semua', 'PEMBASMI HAMA GUDANG', 'PEMBASMI NYAMUK LALAT', 'PEMBASMI RAYAP', 'PEMBASMI TIKUS', 'ALAT PEMBASMI HAMA'];
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        
-        setProducts(data || []);
-        setLoadingProducts(false);
-      } catch (err) {
-        console.error('Error loading products:', err);
-        setLoadingProducts(false);
-      }
-    };
-
-    fetchProducts();
-  }, []);
-
-  useEffect(() => {
-    const parseUrlCategory = () => {
-      const pathname = window.location.pathname;
-      const match = pathname.match(/^\/kategori\/(\d+)/);
-      if (match) {
-        const index = parseInt(match[1], 10);
-        if (index >= 0 && index < categories.length) {
-          setSelectedCategory(categories[index]);
-          return;
-        }
-      }
-      setSelectedCategory('Semua');
-    };
-
-    parseUrlCategory();
-    window.addEventListener('popstate', parseUrlCategory);
-    return () => {
-      window.removeEventListener('popstate', parseUrlCategory);
-    };
-  }, []);
-
-  const handleCategoryChange = (category: string) => {
-    setSelectedCategory(category);
-    const index = categories.indexOf(category);
-    if (category === 'Semua') {
-      window.history.pushState(null, '', '/');
-    } else {
-      const slug = slugifyCategory(category);
-      window.history.pushState(null, '', `/kategori/${index}/${slug}`);
-    }
-  };
-
-  const filteredProducts = selectedCategory === 'Semua'
-    ? products
-    : products.filter(p => p.category === selectedCategory);
-
-  const handleStartOrder = (product: Product) => {
-    setOrderedItems(prev => {
-      const existing = prev.find(item => item.product.id === product.id);
-      if (existing) {
-        return prev;
-      } else {
-        return [...prev, { product, quantity: 1 }];
-      }
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let result = products.filter((p) => {
+      if (category && p.category !== category) return false;
+      if (readyOnly && (p.stok ?? 0) <= 0) return false;
+      if (q && ![p.name, p.pestTarget, p.description].some((f) => f?.toLowerCase().includes(q))) return false;
+      return true;
     });
-    setIsOrderFormOpen(true);
-  };
+    if (sort === 'harga-asc') result = [...result].sort((a, b) => a.price - b.price);
+    if (sort === 'harga-desc') result = [...result].sort((a, b) => b.price - a.price);
+    if (sort === 'nama') result = [...result].sort((a, b) => a.name.localeCompare(b.name, 'id'));
+    return result;
+  }, [products, category, query, sort, readyOnly]);
 
-  useEffect(() => {
-    if (forcedOpenOrderWithProduct) {
-      handleStartOrder(forcedOpenOrderWithProduct);
-      if (clearForcedOpenOrder) {
-        clearForcedOpenOrder();
-      }
-    }
-  }, [forcedOpenOrderWithProduct]);
+  const countFor = (name: string | null) =>
+    name ? products.filter((p) => p.category === name).length : products.length;
 
-  const handleUpdateQuantity = (productId: string, val: number) => {
-    setOrderedItems(prev =>
-      prev.map(item => {
-        if (item.product.id === productId) {
-          const newQty = Math.max(1, val);
-          return { ...item, quantity: newQty };
-        }
-        return item;
-      })
-    );
-  };
-
-  const handleRemoveItem = (productId: string) => {
-    setOrderedItems(prev => prev.filter(item => item.product.id !== productId));
-  };
-
-  const handleAddAdditionalProduct = () => {
-    if (!targetProductToAdd) return;
-    const prodToAdd = products.find(p => p.id === targetProductToAdd);
-    if (prodToAdd) {
-      setOrderedItems(prev => {
-        const existing = prev.find(item => item.product.id === prodToAdd.id);
-        if (existing) return prev;
-        return [...prev, { product: prodToAdd, quantity: 1 }];
-      });
-      setTargetProductToAdd('');
-    }
-  };
-
-  const handleSendWAWholeOrder = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (orderedItems.length === 0) {
-      alert("Daftar pesanan Anda masih kosong.");
-      return;
-    }
-    if (!customerName || !customerAddress) {
-      alert("Silakan lengkapi Nama Penerima dan Alamat Pengiriman Anda.");
-      return;
-    }
-
-    let itemsText = '';
-    let grandTotal = 0;
-    orderedItems.forEach((item, idx) => {
-      const itemSubtotal = item.product.price * item.quantity;
-      grandTotal += itemSubtotal;
-      itemsText += `${idx + 1}. *${item.product.name}*\n   - Kategori: ${item.product.category}\n   - Kemasan: ${item.product.packaging || 'Default'}\n   - Harga Satuan: Rp ${item.product.price.toLocaleString('id-ID')}\n   - Jumlah Qty: *${item.quantity}*\n   - Subtotal: Rp ${itemSubtotal.toLocaleString('id-ID')}\n\n`;
-    });
-
-    const fullMessage = `Halo Tani Makmur Bersama,\n\nSaya ingin memesan produk berikut:\n\n${itemsText}*Total Estimasi Harga:* Rp ${grandTotal.toLocaleString('id-ID')}\n\n*Detail Penerima:*\n- *Nama:* ${customerName}\n- *Alamat:* ${customerAddress}\n- *Catatan:* ${customerNotes || '-'}\n\nMohon bantu siapkan rincian harga utama dan estimasi biaya kargo pengiriman. Terima kasih!`;
-    
-    const waUrl = `https://wa.me/628155071697?text=${encodeURIComponent(fullMessage)}`;
-    window.open(waUrl, '_blank');
-  };
-
-  const availableToAddNew = products.filter(
-    p => !orderedItems.some(item => item.product.id === p.id)
+  const CategoryList = (
+    <ul className="space-y-1">
+      {[null, ...CATEGORIES.map((c) => c.name)].map((name) => {
+        const active = name === category;
+        const label = name ? CATEGORIES.find((c) => c.name === name)!.label : 'Semua Produk';
+        return (
+          <li key={name ?? 'semua'}>
+            <a
+              {...linkProps(categoryPath(name), () => setFilterOpen(false))}
+              className={`flex items-center justify-between py-2 text-sm transition-colors ${
+                active ? 'font-bold text-ink' : 'text-muted hover:text-ink'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                {active && <span className="h-1.5 w-1.5 bg-accent" />}
+                {label}
+              </span>
+              <span className="text-xs text-muted">{loading ? '' : countFor(name)}</span>
+            </a>
+          </li>
+        );
+      })}
+    </ul>
   );
 
-  if (loadingProducts) {
-    return (
-      <section id="produk" className="py-24 sm:py-32 bg-brand-dark border-t border-brand-secondary/10 relative">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-brand-accent text-lg">Memuat produk...</p>
-        </div>
-      </section>
-    );
-  }
-
   return (
-    <section id="produk" className="py-24 sm:py-32 bg-brand-dark border-t border-brand-secondary/10 relative">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(22,101,52,0.04),transparent_50%)] pointer-events-none" />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        
-        {/* Section Header */}
-        <div className="space-y-4 max-w-3xl mb-12 sm:mb-16">
-          <motion.span 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="font-heading text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.2] text-brand-accent bg-gradient-to-r from-brand-accent to-amber-500 bg-clip-text text-transparent block" 
-            id="catalog-label"
-          >
-            KATALOG PRODUK
-          </motion.span>
-          <h2 className="text-4xl sm:text-5xl font-heading font-bold text-slate-900 tracking-tight lettercase" id="portfolio-title">
-            Portofolio
-          </h2>
-          <p className="text-slate-600 font-sans tracking-wide text-base sm:text-lg">
-            Menyediakan obat-obatan pertanian berkualitas dan peralatan pengendali hama terlengkap untuk mendampingi masa panen dan menjaga sterilitas lingkungan Anda.
+    <div>
+      {/* Banner judul halaman */}
+      <section className="text-white" style={{ backgroundColor: current?.color ?? '#111111' }}>
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+          <nav className="mb-3 flex items-center gap-1.5 text-xs text-white/70">
+            <a {...linkProps('/')} className="hover:text-white">Beranda</a>
+            <ChevronRight className="h-3 w-3" />
+            <a {...linkProps('/produk')} className="hover:text-white">Produk</a>
+            {current && (
+              <>
+                <ChevronRight className="h-3 w-3" />
+                <span className="text-white">{current.label}</span>
+              </>
+            )}
+          </nav>
+          <h1 className="font-heading text-4xl font-black uppercase tracking-tight sm:text-5xl">
+            {current ? current.label : 'Semua Produk'}
+          </h1>
+          <p className="mt-2 max-w-xl text-sm text-white/75 sm:text-base">
+            {current
+              ? `${current.desc}. Produk resmi dan terdaftar dari distributor.`
+              : 'Pestisida, insektisida, rodentisida, termitisida dan peralatan pengendali hama resmi.'}
           </p>
         </div>
+      </section>
 
-        {/* Category Filters Bar */}
-        <div className="flex flex-wrap gap-2 sm:gap-3 mb-12 pb-2 border-b border-brand-secondary/10" id="category-filters-container">
-          {categories.map((category) => (
+      {/* Chip kategori untuk HP */}
+      <div className="sticky top-[98px] z-30 border-b border-line bg-white lg:hidden">
+        <div className="flex gap-2 overflow-x-auto px-4 py-3 no-scrollbar">
+          {[null, ...CATEGORIES.map((c) => c.name)].map((name) => (
             <button
-              key={category}
-              onClick={() => handleCategoryChange(category)}
-              className={`px-5 py-2.5 rounded text-xs font-heading font-semibold tracking-widest uppercase transition-all duration-300 ${
-                selectedCategory === category
-                  ? 'bg-brand-secondary text-white shadow-md border-b-2 border-brand-accent'
-                  : 'text-slate-600 hover:text-brand-secondary bg-brand-primary border border-brand-secondary/10 hover:border-brand-secondary/40'
+              key={name ?? 'semua'}
+              onClick={() => navigate(categoryPath(name))}
+              className={`shrink-0 border px-3.5 py-1.5 text-xs font-semibold ${
+                name === category ? 'border-ink bg-ink text-white' : 'border-line text-ink'
               }`}
-              id={`filter-btn-${category.toLowerCase()}`}
             >
-              {category}
+              {name ? CATEGORIES.find((c) => c.name === name)!.label : 'Semua'}
             </button>
           ))}
         </div>
-        
-        {filteredProducts.length === 0 ? (
-          <div className="text-center py-16 border border-dashed border-brand-secondary/30 rounded-xl">
-            <p className="text-gray-400 text-lg">Tidak ada produk di kategori "{selectedCategory}"</p>
-          </div>
-        ) : (
-          <div 
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
-            id="products-grid-container"
-          >
-            {filteredProducts.map((product) => (
-              <div
-                key={product.id}
-                className="group flex flex-col bg-white border border-brand-secondary/10 hover:border-brand-accent rounded-lg overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md"
-                id={`product-card-${product.id}`}
-              >
-                  <div className="relative h-56 sm:h-64 overflow-hidden bg-slate-100">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 filter brightness-95"
-                    />
-                    <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-3 py-1 rounded-sm text-[10px] font-heading font-extrabold tracking-widest text-[#ea580c] uppercase border border-brand-accent/20">
-                      {product.category}
-                    </div>
-                  </div>
-
-                  <div className="p-6 flex-grow flex flex-col justify-between space-y-6">
-                    <div className="space-y-3">
-                      <h3 className="font-heading font-extrabold text-slate-800 group-hover:text-brand-accent transition-colors text-base sm:text-lg tracking-wide uppercase line-clamp-1">
-                        {product.name}
-                      </h3>
-                      <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed">
-                        {product.description}
-                      </p>
-                      
-                      <div className="pt-2 flex flex-wrap gap-2 text-[10px]">
-                        {product.pestTarget && (
-                          <span className="bg-brand-primary text-slate-700 px-2.5 py-1 rounded border border-brand-secondary/10">
-                            🎯 Target: {product.pestTarget}
-                          </span>
-                        )}
-                        {product.packaging && (
-                          <span className="bg-brand-primary text-slate-700 px-2.5 py-1 rounded border border-brand-secondary/10">
-                            📦 {product.packaging}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="pt-3 border-t border-brand-secondary/15 flex items-center justify-between">
-                        <span className="text-[10px] font-mono tracking-wider text-slate-500 uppercase">
-                          Harga
-                        </span>
-                        <span className="text-sm font-heading font-black text-brand-accent tracking-wide">
-                          Rp {product.price.toLocaleString('id-ID')}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* ✅ Buttons Action: HANYA Lihat Detil & Tambah ke Keranjang */}
-                    <div className="pt-4 border-t border-brand-secondary/10">
-                    <button
-                      onClick={() => {
-                        if (onProductClick) {
-                          onProductClick(product);
-                        } else {
-                          setSelectedProduct(product);
-                        }
-                      }}
-                      className="w-full inline-flex items-center justify-center bg-brand-primary hover:bg-brand-secondary text-brand-secondary hover:text-white border border-brand-secondary/20 py-2.5 px-3 rounded-sm text-[10px] font-heading font-bold tracking-widest uppercase transition-colors"
-                    >
-                      LIHAT DETIL
-                    </button>
-                    </div>
-                  </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Detailed Sheet Modal Overlay */}
-        <AnimatePresence>
-          {selectedProduct && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-sm"
-              id="product-detail-modal"
-              onClick={() => setSelectedProduct(null)}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 30 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 30 }}
-                transition={{ type: "spring", damping: 25 }}
-                className="bg-zinc-950/98 border border-brand-secondary/40 w-full max-w-3xl rounded-xl overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  onClick={() => setSelectedProduct(null)}
-                  className="absolute top-4 right-4 z-10 text-gray-400 hover:text-brand-accent p-2 rounded bg-brand-primary/20 border border-brand-secondary/35 focus:outline-none"
-                  aria-label="Close modal"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-
-                <div className="overflow-y-auto flex-grow">
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 p-6 sm:p-8">
-                    <div className="md:col-span-5 relative h-64 md:h-full min-h-[250px] rounded-lg overflow-hidden bg-brand-primary/10 flex items-center justify-center">
-                      <img
-                        src={selectedProduct.image}
-                        alt={selectedProduct.name}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-contain p-2"
-                      />
-                      <div className="absolute top-3 left-3 bg-emerald-700 text-white px-3 py-1 rounded text-[9px] font-heading font-extrabold tracking-widest uppercase">
-                        {selectedProduct.category}
-                      </div>
-                    </div>
-
-                    <div className="md:col-span-7 flex flex-col justify-between space-y-6">
-                      <div className="space-y-4">
-                        <h3 className="text-xl sm:text-2xl font-heading font-black text-brand-accent tracking-wide uppercase leading-snug">
-                          {selectedProduct.name}
-                        </h3>
-                        
-                        <div className="grid grid-cols-3 gap-2 text-xs border-y border-brand-secondary/20 py-3">
-                          <div>
-                            <span className="text-gray-400 block text-[10px] uppercase font-mono">Formulasi</span>
-                            <span className="text-gray-200 font-semibold block truncate">{selectedProduct.formulation || "Konsentrat Emulsi"}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-400 block text-[10px] uppercase font-mono">Kemasan</span>
-                            <span className="text-gray-200 font-semibold block truncate">{selectedProduct.packaging || "Botol Aluminium"}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-400 block text-[10px] uppercase font-mono">Harga</span>
-                            <span className="text-brand-accent font-black block text-sm">Rp {selectedProduct.price.toLocaleString('id-ID')}</span>
-                          </div>
-                        </div>
-
-                        <p className="text-sm text-gray-300 leading-relaxed font-sans">
-                          {selectedProduct.description}
-                        </p>
-
-                        <div className="space-y-2 mt-4">
-                          <span className="text-[10px] font-mono tracking-widest text-[#cccccc] block uppercase">
-                            KEUNGGULAN PRODUK
-                          </span>
-                          <div className="space-y-2">
-                            {selectedProduct.features && selectedProduct.features.length > 0 ? (
-                              selectedProduct.features.map((feat, i) => (
-                                <div key={i} className="flex items-start space-x-2 text-xs text-gray-300">
-                                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                                  <span>{feat}</span>
-                                </div>
-                              ))
-                            ) : (
-                              <p className="text-xs text-gray-500">Tidak ada fitur tambahan.</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ✅ Store Redirect Options: HANYA Tambah ke Keranjang & Marketplace */}
-                      <div className="pt-6 border-t border-brand-secondary/20 space-y-4">
-                        <span className="text-[10px] font-mono tracking-widest text-brand-accent block uppercase">
-                          PILIH SALURAN PEMBELIAN
-                        </span>
-                        
-                        <div className="space-y-3">
-
-                          {/* 2. Marketplace Links */}
-                          <div className="grid grid-cols-3 gap-3 pt-2">
-                            <a
-                              href={BUSINESS_INFO.shopeeUrl1}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center justify-center space-x-1 bg-[#ee4d2d]/10 hover:bg-[#ee4d2d] text-[#ee4d2d] hover:text-white font-extrabold text-[10px] py-2.5 rounded uppercase border border-[#ee4d2d]/40 transition-colors"
-                            >
-                              <ShoppingBag className="w-3.5 h-3.5" />
-                              <span>SHOPEE 1</span>
-                            </a>
-                            <a
-                              href={BUSINESS_INFO.shopeeUrl2}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center justify-center space-x-1 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-600 hover:text-white font-extrabold text-[10px] py-2.5 rounded uppercase border border-emerald-500/40 transition-colors"
-                            >
-                              <ShoppingCart className="w-3.5 h-3.5" />
-                              <span>SHOPEE 2</span>
-                            </a>
-                            <a
-                              href={BUSINESS_INFO.lazadaUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center justify-center space-x-1 bg-[#000080]/10 hover:bg-[#000080] text-[#000080] hover:text-white font-extrabold text-[10px] py-2.5 rounded uppercase border border-[#000080]/40 transition-colors"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                              <span>LAZADA</span>
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-                </div>
-
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Interactive Order & Quantity Form Modal */}
-        <AnimatePresence>
-          {isOrderFormOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm"
-              id="order-form-modal"
-              onClick={() => setIsOrderFormOpen(false)}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 30 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 30 }}
-                transition={{ type: "spring", damping: 25 }}
-                className="bg-white border border-slate-200 w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-between p-6 bg-gradient-to-r from-[#1e5631] to-[#164226] text-white">
-                  <div className="flex items-center space-x-3">
-                    <div className="bg-white/20 backdrop-blur-sm p-2.5 rounded-lg">
-                      <ShoppingCart className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold tracking-wide uppercase">
-                        Form Jumlah Pesanan
-                      </h3>
-                      <p className="text-xs text-white/80 mt-0.5">
-                        Ubah Jumlah, Tambah Barang & Kirim Pesanan
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setIsOrderFormOpen(false)}
-                    className="text-white/80 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-                    aria-label="Tutup"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="overflow-y-auto p-6 space-y-6 flex-grow bg-slate-50">
-                  <div className="space-y-4">
-                    <span className="text-xs font-bold text-[#1e5631] block uppercase tracking-wider">
-                      Daftar Belanja ({orderedItems.length} Barang)
-                    </span>
-                    
-                    {orderedItems.length === 0 ? (
-                      <div className="py-8 text-center border-2 border-dashed border-slate-300 rounded-xl text-slate-500 text-sm">
-                        Belum ada barang dipilih. Silakan pilih menu tambah di bawah ini.
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {orderedItems.map((item) => (
-                          <div
-                            key={item.product.id}
-                            className="flex items-center space-x-4 p-4 bg-white border-2 border-slate-200 hover:border-[#1e5631]/30 rounded-xl transition-all"
-                          >
-                            <img
-                              src={item.product.image}
-                              alt={item.product.name}
-                              className="w-16 h-16 rounded-lg object-cover border border-slate-200 flex-shrink-0"
-                            />
-                            
-                            <div className="flex-grow min-w-0">
-                              <h4 className="font-bold text-sm text-slate-800 truncate uppercase">
-                                {item.product.name}
-                              </h4>
-                              <span className="text-xs text-slate-500 block">
-                                {item.product.packaging || "Kemasan Standar"} • Rp {item.product.price.toLocaleString('id-ID')}
-                              </span>
-                              {item.quantity > 1 && (
-                                <span className="text-xs text-[#ea580c] block font-bold mt-1">
-                                  Subtotal: Rp {(item.product.price * item.quantity).toLocaleString('id-ID')}
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="flex items-center space-x-2 flex-shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => handleUpdateQuantity(item.product.id, item.quantity - 1)}
-                                className="w-8 h-8 bg-white border-2 border-slate-200 hover:border-[#1e5631] rounded-lg flex items-center justify-center text-slate-600 hover:text-[#1e5631] transition-all"
-                              >
-                                <Minus className="w-4 h-4" />
-                              </button>
-                              <input
-                                type="text"
-                                value={item.quantity}
-                                onChange={(e) => handleUpdateQuantity(item.product.id, parseInt(e.target.value) || 1)}
-                                className="w-12 bg-white border-2 border-slate-200 text-center text-sm font-bold text-slate-800 focus:outline-none focus:border-[#1e5631] rounded-lg py-1.5"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => handleUpdateQuantity(item.product.id, item.quantity + 1)}
-                                className="w-8 h-8 bg-white border-2 border-slate-200 hover:border-[#1e5631] rounded-lg flex items-center justify-center text-slate-600 hover:text-[#1e5631] transition-all"
-                              >
-                                <Plus className="w-4 h-4" />
-                              </button>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveItem(item.product.id)}
-                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                              title="Hapus dari daftar"
-                            >
-                              <Trash2 className="w-5 h-5" />
-                            </button>
-                          </div>
-                        ))}
-
-                        <div className="mt-4 p-4 bg-gradient-to-r from-[#1e5631] to-[#164226] border border-[#1e5631] rounded-xl flex items-center justify-between shadow-lg">
-                          <span className="uppercase text-xs font-bold text-white/90 tracking-wider">Total Estimasi Harga</span>
-                          <span className="text-lg font-bold text-white">
-                            Rp {orderedItems.reduce((acc, curr) => acc + (curr.product.price * curr.quantity), 0).toLocaleString('id-ID')}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-4 bg-white border-2 border-slate-200 rounded-xl space-y-3">
-                    <span className="text-xs font-bold text-[#1e5631] block uppercase tracking-wider">
-                      ➕ Tambah Barang Lain ke Daftar Pesanan
-                    </span>
-                    <div className="flex gap-2.5">
-                      <select
-                        value={targetProductToAdd}
-                        onChange={(e) => setTargetProductToAdd(e.target.value)}
-                        className="flex-grow bg-white border-2 border-slate-200 rounded-lg p-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#1e5631] cursor-pointer"
-                      >
-                        <option value="">-- Cari & Pilih Produk Lain --</option>
-                        {availableToAddNew.map((prod) => (
-                          <option key={prod.id} value={prod.id}>
-                            [{prod.category}] {prod.name} - Rp {prod.price.toLocaleString('id-ID')}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={handleAddAdditionalProduct}
-                        disabled={!targetProductToAdd}
-                        className="inline-flex items-center space-x-1.5 bg-[#ea580c] hover:bg-[#ea580c]/90 disabled:bg-slate-300 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-all uppercase flex-shrink-0 cursor-pointer"
-                      >
-                        <PlusCircle className="w-4 h-4" />
-                        <span>Tambah</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <form onSubmit={handleSendWAWholeOrder} className="space-y-4 pt-2">
-                    <span className="text-xs font-bold text-[#ea580c] block uppercase tracking-wider">
-                      Info Detail Penerima & Lokasi Pengiriman
-                    </span>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700 block uppercase tracking-wide">
-                          Nama Penerima <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="Nama lengkap Anda..."
-                          value={customerName}
-                          onChange={(e) => setCustomerName(e.target.value)}
-                          className="w-full bg-white border-2 border-slate-200 focus:border-[#1e5631] rounded-lg p-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1e5631]/20 transition-all"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700 block uppercase tracking-wide">
-                          Kota & Provinsi Tujuan <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="Contoh: Denpasar, Bali"
-                          value={customerAddress}
-                          onChange={(e) => setCustomerAddress(e.target.value)}
-                          className="w-full bg-white border-2 border-slate-200 focus:border-[#1e5631] rounded-lg p-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1e5631]/20 transition-all"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 block uppercase tracking-wide">
-                        Catatan Tambahan (Opsional)
-                      </label>
-                      <textarea
-                        rows={2}
-                        placeholder="Contoh: Kirim secepatnya / Minta kargo laut termurah..."
-                        value={customerNotes}
-                        onChange={(e) => setCustomerNotes(e.target.value)}
-                        className="w-full bg-white border-2 border-slate-200 focus:border-[#1e5631] rounded-lg p-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1e5631]/20 transition-all resize-none"
-                      />
-                    </div>
-
-                    <div className="pt-4 border-t-2 border-slate-200 flex flex-col sm:flex-row gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setIsOrderFormOpen(false)}
-                        className="w-full sm:w-1/3 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border-2 border-slate-300 py-3.5 px-4 rounded-lg text-xs font-bold tracking-wider uppercase transition-colors cursor-pointer"
-                      >
-                        Batal
-                      </button>
-                      <button
-                        type="submit"
-                        className="w-full sm:w-2/3 inline-flex items-center justify-center space-x-2 bg-[#1e5631] hover:bg-[#164226] text-white font-bold tracking-wider text-xs py-3.5 px-4 rounded-lg transition-all uppercase shadow-lg shadow-green-500/20 active:scale-95 cursor-pointer"
-                      >
-                        <ShoppingCart className="w-4 h-4 text-white" />
-                        <span>Kirim Pesanan</span>
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
       </div>
-    </section>
+
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[220px_1fr] lg:px-8 lg:py-12">
+        {/* Sidebar desktop */}
+        <aside className="hidden lg:block">
+          <div className="sticky top-32 space-y-8">
+            <div>
+              <h3 className="mb-3 border-b border-line pb-3 text-xs font-bold uppercase tracking-widest">Kategori</h3>
+              {CategoryList}
+            </div>
+            <div>
+              <h3 className="mb-3 border-b border-line pb-3 text-xs font-bold uppercase tracking-widest">Ketersediaan</h3>
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input type="checkbox" checked={readyOnly} onChange={(e) => setReadyOnly(e.target.checked)} className="h-4 w-4 accent-[#166534]" />
+                Hanya stok tersedia
+              </label>
+            </div>
+          </div>
+        </aside>
+
+        <div>
+          {/* Toolbar */}
+          <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Cari di katalog…"
+                className="w-full border border-line py-2.5 pl-9 pr-9 text-sm outline-none focus:border-ink"
+              />
+              {query && (
+                <button onClick={() => setQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1" aria-label="Hapus pencarian">
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-muted">{loading ? 'Memuat…' : `${list.length} produk`}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setFilterOpen(true)}
+                  className="flex items-center gap-1.5 border border-line px-3 py-2.5 text-xs font-semibold lg:hidden"
+                >
+                  <SlidersHorizontal className="h-4 w-4" /> Filter
+                </button>
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as SortKey)}
+                  className="cursor-pointer border border-line bg-white px-3 py-2.5 text-xs font-semibold outline-none focus:border-ink"
+                  aria-label="Urutkan"
+                >
+                  {Object.entries(SORTS).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 md:grid-cols-3 xl:grid-cols-4">
+            {loading
+              ? Array.from({ length: 8 }).map((_, i) => <ProductCardSkeleton key={i} />)
+              : list.map((p) => <ProductCard key={p.id} product={p} isNew={newIds.has(p.id)} />)}
+          </div>
+
+          {!loading && list.length === 0 && (
+            <div className="border border-dashed border-line py-20 text-center">
+              <p className="font-heading text-lg font-bold uppercase">Produk tidak ditemukan</p>
+              <p className="mt-1 text-sm text-muted">Coba kata kunci lain atau lihat kategori lainnya.</p>
+              <a {...linkProps('/produk', () => setQuery(''))} className="mt-5 inline-block bg-ink px-6 py-3 text-xs font-bold uppercase tracking-widest text-white">
+                Lihat Semua Produk
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Panel filter untuk HP */}
+      {filterOpen && (
+        <div className="fixed inset-0 z-[70] bg-black/40 lg:hidden" onClick={() => setFilterOpen(false)}>
+          <div className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto bg-white p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <span className="font-heading text-base font-black uppercase">Filter</span>
+              <button onClick={() => setFilterOpen(false)} aria-label="Tutup filter"><X className="h-5 w-5" /></button>
+            </div>
+            <h3 className="mb-2 text-xs font-bold uppercase tracking-widest">Kategori</h3>
+            {CategoryList}
+            <label className="mt-5 flex items-center gap-2 border-t border-line pt-5 text-sm">
+              <input type="checkbox" checked={readyOnly} onChange={(e) => setReadyOnly(e.target.checked)} className="h-4 w-4 accent-[#166534]" />
+              Hanya stok tersedia
+            </label>
+            <button onClick={() => setFilterOpen(false)} className="mt-6 w-full bg-ink py-3.5 text-xs font-bold uppercase tracking-widest text-white">
+              Tampilkan {list.length} produk
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

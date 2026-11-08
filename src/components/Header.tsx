@@ -1,187 +1,322 @@
-import React, { useState, useEffect } from 'react';
-import { Menu, X, Globe, ShoppingCart } from 'lucide-react';
-import { BUSINESS_INFO } from '../data';
-import { useCart } from '../components/CartContext';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Menu, X, Search, ShoppingBag, ChevronDown, ChevronRight, MessageCircle } from 'lucide-react';
+import { ANNOUNCEMENTS, BUSINESS_INFO, CATEGORIES, formatRupiah } from '../data';
+import { useCart } from './CartContext';
+import { useProducts } from '../hooks/useProducts';
+import { Route, categoryPath, linkProps, navigate } from '../router';
 
-// ✅ Interface disederhanakan - hapus semua props auth
 interface HeaderProps {
-  activeSection: string;
-  onNavClick: (sectionId: string) => void;
-  onNavigateToCart: () => void;
+  route: Route;
 }
 
-export default function Header({ 
-  activeSection, 
-  onNavClick, 
-  onNavigateToCart
-}: HeaderProps) {
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+const NAV = [
+  { label: 'Beranda', path: '/', match: ['home'] },
+  { label: 'Belanja', path: '/produk', match: ['produk', 'detail'], mega: true },
+  { label: 'Keunggulan', path: '/keunggulan', match: ['keunggulan'] },
+  { label: 'Artikel', path: '/artikel', match: ['artikel', 'artikel-detail'] },
+  { label: 'Kontak', path: '/kontak', match: ['kontak'] },
+];
+
+function AnnouncementBar() {
+  const items = [...ANNOUNCEMENTS, ...ANNOUNCEMENTS];
+  return (
+    <div className="overflow-hidden bg-brand-dark text-white">
+      <div className="flex w-max animate-marquee whitespace-nowrap py-2">
+        {items.map((text, i) => (
+          <span key={i} className="mx-8 text-[11px] font-semibold uppercase tracking-[0.2em]">
+            {text}
+            <span className="ml-16 text-accent">●</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SearchOverlay({ onClose }: { onClose: () => void }) {
+  const [query, setQuery] = useState('');
+  const { products } = useProducts();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return products
+      .filter((p) =>
+        [p.name, p.category, p.pestTarget, p.description].some((f) => f?.toLowerCase().includes(q))
+      )
+      .slice(0, 6);
+  }, [query, products]);
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/40" onClick={onClose}>
+      <div className="bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mx-auto max-w-3xl px-4 py-5">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (results[0]) {
+                onClose();
+                navigate(`/produk/${results[0].id}`);
+              }
+            }}
+            className="flex items-center gap-3 border-b-2 border-ink pb-3"
+          >
+            <Search className="h-5 w-5 shrink-0 text-muted" />
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Cari produk, mis. racun tikus, rayap, fogging…"
+              className="w-full bg-transparent text-base outline-none placeholder:text-muted"
+            />
+            <button type="button" onClick={onClose} aria-label="Tutup pencarian" className="p-1">
+              <X className="h-5 w-5" />
+            </button>
+          </form>
+
+          {query.trim() && (
+            <div className="max-h-[60vh] overflow-y-auto py-3">
+              {results.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted">Produk "{query}" tidak ditemukan.</p>
+              ) : (
+                results.map((p) => (
+                  <a
+                    key={p.id}
+                    {...linkProps(`/produk/${p.id}`, onClose)}
+                    className="flex items-center gap-4 px-1 py-3 hover:bg-soft"
+                  >
+                    <img src={p.image} alt="" referrerPolicy="no-referrer" className="h-14 w-14 shrink-0 bg-soft object-cover" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{p.name}</p>
+                      <p className="text-xs text-muted">{p.category}</p>
+                    </div>
+                    <span className="shrink-0 text-sm font-bold">{formatRupiah(p.price)}</span>
+                  </a>
+                ))
+              )}
+            </div>
+          )}
+
+          {!query.trim() && (
+            <div className="flex flex-wrap gap-2 pt-4">
+              <span className="w-full text-[11px] font-bold uppercase tracking-widest text-muted">Kategori populer</span>
+              {CATEGORIES.map((c) => (
+                <a
+                  key={c.name}
+                  {...linkProps(categoryPath(c.name), onClose)}
+                  className="border border-line px-3 py-1.5 text-xs font-medium hover:border-ink"
+                >
+                  {c.label}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function Header({ route }: HeaderProps) {
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [megaOpen, setMegaOpen] = useState(false);
   const { cartCount } = useCart();
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    onScroll();
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const navItems = [
-    { label: 'BERANDA', id: 'beranda' },
-    { label: 'PRODUK', id: 'produk' },
-    { label: 'KEUNGGULAN', id: 'keunggulan' },
-    { label: 'ARTIKEL', id: 'artikel' },
-    { label: 'KONTAK', id: 'kontak' }
-  ];
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? 'hidden' : '';
+  }, [mobileOpen]);
 
-  const handleItemClick = (id: string) => {
-    setMobileMenuOpen(false);
-    onNavClick(id);
-  };
+  // Tutup semua menu setiap pindah halaman
+  useEffect(() => {
+    setMobileOpen(false);
+    setMegaOpen(false);
+  }, [route]);
 
   return (
     <>
-      <header
-        id="navbar-header"
-        className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
-          isScrolled
-            ? 'bg-brand-dark/95 backdrop-blur-md border-b border-brand-secondary/15 py-3 shadow-md'
-            : 'bg-brand-dark/80 backdrop-blur-sm border-b border-brand-secondary/10 py-5'
-        }`}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            {/* Logo area */}
-            <div 
-              className="flex items-center space-x-3 cursor-pointer group"
-              onClick={() => handleItemClick('beranda')}
-              id="header-brand-logo"
-            >
-              <div className="bg-brand-secondary text-white font-black px-2.5 py-1.5 rounded text-sm sm:text-base tracking-wider transition-all duration-300 group-hover:bg-brand-accent shadow-inner flex items-center justify-center">
-                TM
-              </div>
-              <span className="font-heading font-extrabold tracking-widest text-brand-secondary text-sm sm:text-lg group-hover:text-brand-accent transition-colors">
-                TANI MAKMUR
-              </span>
+      <div className="sticky top-0 z-50">
+        <AnnouncementBar />
+        <header className={`border-b border-line bg-white transition-shadow ${scrolled ? 'shadow-sm' : ''}`}>
+          <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:h-[72px] lg:px-8">
+            {/* Kiri: tombol menu (HP) + logo */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setMobileOpen(true)}
+                className="-ml-2 p-2 lg:hidden"
+                aria-label="Buka menu"
+              >
+                <Menu className="h-6 w-6" />
+              </button>
+              <a {...linkProps('/')} className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 items-center justify-center bg-brand font-heading text-sm font-black text-white">
+                  TM
+                </span>
+                <span className="hidden flex-col leading-none sm:flex">
+                  <span className="font-heading text-base font-black uppercase tracking-tight">Tani Makmur</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-muted">Bersama</span>
+                </span>
+              </a>
             </div>
 
-            {/* Desktop Navigation Links */}
-            <nav className="hidden lg:flex items-center space-x-8" id="desktop-nav">
-              {navItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleItemClick(item.id)}
-                  className={`text-xs font-heading font-semibold tracking-widest transition-all duration-200 relative py-1 hover:text-brand-accent ${
-                    activeSection === item.id
-                      ? 'text-brand-accent font-bold'
-                      : 'text-slate-700'
-                  }`}
-                  id={`nav-item-${item.id}`}
-                >
-                  {item.label}
-                  {activeSection === item.id && (
-                    <span className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-brand-accent rounded-full" />
-                  )}
-                </button>
-              ))}
+            {/* Tengah: menu desktop */}
+            <nav className="hidden h-full items-stretch lg:flex">
+              {NAV.map((item) => {
+                const active = item.match.includes(route.name);
+                return (
+                  <div
+                    key={item.path}
+                    className="relative flex items-stretch"
+                    onMouseEnter={() => item.mega && setMegaOpen(true)}
+                    onMouseLeave={() => item.mega && setMegaOpen(false)}
+                  >
+                    <a
+                      {...linkProps(item.path)}
+                      className={`flex items-center gap-1 px-4 text-[13px] font-bold uppercase tracking-wider transition-colors hover:text-brand ${
+                        active ? 'text-brand' : 'text-ink'
+                      }`}
+                    >
+                      {item.label}
+                      {item.mega && <ChevronDown className="h-3.5 w-3.5" />}
+                    </a>
+                    {active && <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-brand" />}
+                  </div>
+                );
+              })}
             </nav>
 
-            {/* ✅ Hanya Tombol Keranjang (Tanpa Auth) */}
-            <div className="hidden sm:flex items-center space-x-3" id="desktop-cart-button">
-              <button
-                onClick={onNavigateToCart}
-                className="relative inline-flex items-center space-x-2 bg-transparent hover:bg-brand-accent text-brand-secondary hover:text-white border border-brand-secondary hover:border-brand-accent transition-all duration-300 px-4 py-2 rounded-sm text-xs font-bold tracking-widest uppercase shadow-sm"
-                id="btn-nav-cart"
+            {/* Kanan: ikon */}
+            <div className="flex items-center gap-1">
+              <button onClick={() => setSearchOpen(true)} className="p-2 hover:text-brand" aria-label="Cari produk">
+                <Search className="h-5 w-5" />
+              </button>
+              <a
+                href={BUSINESS_INFO.whatsappUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="hidden p-2 hover:text-brand sm:block"
+                aria-label="Chat WhatsApp"
               >
-                <ShoppingCart className="w-3.5 h-3.5" />
-                <span>KERANJANG</span>
+                <MessageCircle className="h-5 w-5" />
+              </a>
+              <a {...linkProps('/cart')} className="relative p-2 hover:text-brand" aria-label="Keranjang">
+                <ShoppingBag className="h-5 w-5" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg">
+                  <span className="absolute right-0 top-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-white">
                     {cartCount}
                   </span>
                 )}
-              </button>
-            </div>
-
-            {/* Mobile Menu Button */}
-            <div className="lg:hidden flex items-center space-x-2">
-              {/* Mobile Cart Button */}
-              <button
-                onClick={onNavigateToCart}
-                className="relative p-2 text-slate-700 hover:text-brand-accent transition-colors"
-                id="btn-mobile-cart"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                    {cartCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="text-slate-700 hover:text-brand-secondary focus:outline-none p-1.5 rounded bg-brand-primary border border-brand-secondary/20"
-                aria-label="Toggle menu"
-                id="btn-mobile-menu-toggle"
-              >
-                {mobileMenuOpen ? (
-                  <X className="w-6 h-6 text-brand-accent" />
-                ) : (
-                  <Menu className="w-6 h-6" />
-                )}
-              </button>
+              </a>
             </div>
           </div>
-        </div>
 
-        {/* Mobile Navigation Drawer */}
-        <div
-          id="mobile-nav-drawer"
-          className={`lg:hidden fixed inset-x-0 top-[61px] m-4 bg-white border border-brand-secondary/15 backdrop-blur-lg rounded-xl shadow-xl overflow-hidden transition-all duration-300 transform origin-top ${
-            mobileMenuOpen
-              ? 'opacity-100 scale-y-100 pointer-events-auto'
-              : 'opacity-0 scale-y-95 pointer-events-none'
-          }`}
-        >
-          <div className="px-5 py-6 space-y-4">
-            <div className="space-y-2">
-              {navItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleItemClick(item.id)}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-heading font-semibold tracking-wider transition-all duration-150 ${
-                    activeSection === item.id
-                      ? 'bg-brand-primary text-brand-accent border-l-4 border-brand-accent'
-                      : 'text-slate-700 hover:bg-brand-primary/50 hover:text-brand-secondary'
-                  }`}
-                  id={`mobile-nav-item-${item.id}`}
-                >
-                  <span>{item.label}</span>
-                  <Globe className="w-4 h-4 opacity-30 text-brand-secondary" />
-                </button>
-              ))}
-            </div>
-
-            {/* ✅ Mobile Cart Button (Tanpa Auth) */}
-            <div className="pt-4 border-t border-brand-secondary/10">
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onNavigateToCart();
-                }}
-                className="w-full flex items-center justify-center space-x-2 bg-brand-accent hover:bg-brand-accent/90 text-white font-heading font-extrabold tracking-widest text-xs py-3 rounded-lg uppercase shadow-md transition-all active:scale-95"
-                id="btn-mobile-cart-menu"
-              >
-                <ShoppingCart className="w-4 h-4" />
-                <span>KERANJANG ({cartCount})</span>
-              </button>
+          {/* Mega menu kategori */}
+          <div
+            onMouseEnter={() => setMegaOpen(true)}
+            onMouseLeave={() => setMegaOpen(false)}
+            className={`absolute inset-x-0 hidden border-b border-line bg-white shadow-lg transition-all duration-200 lg:block ${
+              megaOpen ? 'visible opacity-100' : 'invisible opacity-0'
+            }`}
+          >
+            <div className="mx-auto grid max-w-7xl grid-cols-12 gap-8 px-8 py-8">
+              <div className="col-span-3 space-y-3">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted">Belanja</p>
+                <a {...linkProps('/produk')} className="block font-heading text-2xl font-black uppercase leading-tight hover:text-brand">
+                  Semua Produk
+                </a>
+                <p className="text-sm text-muted">Pestisida, insektisida, rodentisida & alat pengendali hama resmi.</p>
+              </div>
+              <div className="col-span-9 grid grid-cols-5 gap-4">
+                {CATEGORIES.map((c) => (
+                  <a
+                    key={c.name}
+                    {...linkProps(categoryPath(c.name))}
+                    className="group flex flex-col justify-between p-4 text-white transition-transform hover:-translate-y-0.5"
+                    style={{ backgroundColor: c.color, minHeight: 120 }}
+                  >
+                    <span className="font-heading text-base font-extrabold uppercase leading-tight">{c.label}</span>
+                    <span className="flex items-center justify-between text-xs text-white/80">
+                      {c.desc}
+                      <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </span>
+                  </a>
+                ))}
+              </div>
             </div>
           </div>
+        </header>
+      </div>
+
+      {/* Menu samping untuk HP */}
+      <div
+        className={`fixed inset-0 z-[70] bg-black/40 transition-opacity lg:hidden ${
+          mobileOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+        onClick={() => setMobileOpen(false)}
+      />
+      <aside
+        className={`fixed inset-y-0 left-0 z-[80] flex w-[85%] max-w-sm flex-col bg-white transition-transform duration-300 lg:hidden ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        aria-hidden={!mobileOpen}
+      >
+        <div className="flex h-16 items-center justify-between border-b border-line px-4">
+          <span className="font-heading text-base font-black uppercase">Menu</span>
+          <button onClick={() => setMobileOpen(false)} className="p-2" aria-label="Tutup menu">
+            <X className="h-6 w-6" />
+          </button>
         </div>
-      </header>
+        <nav className="flex-1 overflow-y-auto">
+          {NAV.map((item) => (
+            <a
+              key={item.path}
+              {...linkProps(item.path)}
+              className={`flex items-center justify-between border-b border-line px-5 py-4 text-sm font-bold uppercase tracking-wider ${
+                item.match.includes(route.name) ? 'text-brand' : ''
+              }`}
+            >
+              {item.label}
+              <ChevronRight className="h-4 w-4 text-muted" />
+            </a>
+          ))}
+          <p className="px-5 pb-2 pt-6 text-[11px] font-bold uppercase tracking-widest text-muted">Kategori</p>
+          {CATEGORIES.map((c) => (
+            <a key={c.name} {...linkProps(categoryPath(c.name))} className="flex items-center gap-3 px-5 py-3 text-sm">
+              <span className="h-2.5 w-2.5" style={{ backgroundColor: c.color }} />
+              {c.label}
+            </a>
+          ))}
+        </nav>
+        <div className="border-t border-line p-4">
+          <a
+            href={BUSINESS_INFO.whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex w-full items-center justify-center gap-2 bg-brand py-3.5 text-xs font-bold uppercase tracking-widest text-white"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Konsultasi via WhatsApp
+          </a>
+        </div>
+      </aside>
+
+      {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} />}
     </>
   );
 }

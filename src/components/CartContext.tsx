@@ -8,12 +8,13 @@ export interface CartItem {
 
 interface CartContextType {
   cartItems: CartItem[];
-  addToCart: (product: Product) => void;
+  addToCart: (product: Product, quantity?: number) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
   cartTotal: number;
   cartCount: number;
+  lastAdded: { product: Product; at: number } | null;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -21,31 +22,36 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // ✅ PERBAIKAN: Cek window object untuk mencegah error saat SSR/Build
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
-    if (typeof window !== 'undefined') {
+    try {
       const saved = localStorage.getItem('cart');
       return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
     }
-    return [];
   });
+  const [lastAdded, setLastAdded] = useState<CartContextType['lastAdded']>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    try {
       localStorage.setItem('cart', JSON.stringify(cartItems));
+    } catch {
+      // Penyimpanan browser tidak tersedia (mode privat); keranjang tetap jalan di memori
     }
   }, [cartItems]);
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, quantity = 1) => {
     setCartItems(prev => {
       const existing = prev.find(item => item.product.id === product.id);
       if (existing) {
         return prev.map(item =>
           item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       }
-      return [...prev, { product, quantity: 1 }];
+      return [...prev, { product, quantity }];
     });
+    setLastAdded({ product, at: Date.now() });
   };
 
   const removeFromCart = (productId: string) => {
@@ -86,7 +92,8 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         updateQuantity,
         clearCart,
         cartTotal,
-        cartCount
+        cartCount,
+        lastAdded
       }}
     >
       {children}

@@ -14,6 +14,8 @@ export const BUSINESS_INFO = {
   instagramUrl: "https://www.instagram.com",
   email: "tmb.pestcontrol@gmail.com",
   address: "Denpasar, Bali, Indonesia",
+  fullAddress: "Jl. Pabean Asri Jl. Ferrari No.25 BLOK W, Pabean, Kec. Sedati, Kab Sidoarjo, 61253, Jawa Timur",
+  hours: "Senin - Sabtu, 08:00 - 17:00",
   stats: [
     { value: "500+", label: "Produk Tersedia" },
     { value: "10K+", label: "Pelanggan Aktif" },
@@ -48,3 +50,21 @@ export const ADVANTAGES: CompanyAdvantage[] = [
   }
 ];
 
+
+// Kategori produk. `name` harus sama persis dengan kolom `category` di Supabase.
+export const CATEGORIES = [
+  { name: 'PEMBASMI HAMA GUDANG', label: 'Hama Gudang', desc: 'Lindungi stok & hasil panen', color: '#166534' },
+  { name: 'PEMBASMI NYAMUK LALAT', label: 'Nyamuk & Lalat', desc: 'Insektisida & fogging', color: '#0f3d22' },
+  { name: 'PEMBASMI RAYAP', label: 'Rayap', desc: 'Termitisida bangunan', color: '#9a3412' },
+  { name: 'PEMBASMI TIKUS', label: 'Tikus', desc: 'Rodentisida & umpan', color: '#1f2937' },
+  { name: 'ALAT PEMBASMI HAMA', label: 'Alat Pengendali', desc: 'Sprayer, fogging & perangkap', color: '#ea580c' },
+];
+
+export const ANNOUNCEMENTS = [
+  'Pengiriman ke seluruh Indonesia',
+  'Produk resmi & terdaftar',
+  'Konsultasi hama gratis via WhatsApp',
+  'Harga khusus pembelian grosir',
+];
+
+export const formatRupiah = (value: number) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
