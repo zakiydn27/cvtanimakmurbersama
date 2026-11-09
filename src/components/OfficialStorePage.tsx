@@ -75,7 +75,7 @@ export function MarketplaceLogo({ logo }: { logo: StoreLogo }) {
               <Music2 className="absolute left-0.5 top-0.5 h-8 w-8 text-[#FE2C55]" strokeWidth={3} />
               <Music2 className="absolute inset-0 h-8 w-8 text-[#111]" strokeWidth={3} />
             </span>
-            <span className="text-2xl font-black tracking-tight text-[#111]">
+            <span className="whitespace-nowrap text-2xl font-black tracking-tight text-[#111]">
               TikTok <span className="font-medium">Shop</span>
             </span>
           </span>

@@ -2,12 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { ArrowRight, ChevronLeft, ChevronRight, ShieldCheck, Truck, MessageCircle, BadgePercent } from 'lucide-react';
 import heroBg from '../assets/images/hero_background_1781083617747.png';
-import { BUSINESS_INFO, CATEGORIES } from '../data';
+import { BUSINESS_INFO, CATEGORIES, OFFICIAL_STORES } from '../data';
 import { useProducts } from '../hooks/useProducts';
 import { useArticles } from '../hooks/useArticles';
 import { categoryPath, linkProps } from '../router';
 import { Product } from '../types';
 import ProductCard, { ProductCardSkeleton } from './ProductCard';
+import { MarketplaceLogo } from './OfficialStorePage';
 
 const firstImageOf = (products: Product[], category: string) =>
   products.find((p) => p.category === category && p.image)?.image;
@@ -233,6 +234,58 @@ const ViewAll = ({ path, label = 'Lihat Semua' }: { path: string; label?: string
     <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
   </a>
 );
+
+/* ---------------- Logo official store ---------------- */
+
+function OfficialStoreStrip() {
+  // Satu logo per marketplace (Shopee punya 2 toko, di beranda cukup tampil sekali)
+  const stores = OFFICIAL_STORES.filter((s, i, all) => all.findIndex((o) => o.logo === s.logo) === i);
+
+  return (
+    <section className="border-b border-line">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-14">
+        <div className="text-center">
+          <h2 className="font-heading text-2xl font-black tracking-tight sm:text-4xl">Tersedia di Marketplace</h2>
+          <p className="mt-2 text-sm text-muted">Pilih Official Store kami di bawah ini</p>
+        </div>
+        <div className="mt-8 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+          {stores.map((store) =>
+            store.url ? (
+              <a
+                key={store.logo}
+                href={store.url}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={store.name}
+                className="flex h-24 items-center justify-center transition-transform hover:-translate-y-1"
+              >
+                <span className="scale-[0.72] sm:scale-90 xl:scale-100">
+                  <MarketplaceLogo logo={store.logo} />
+                </span>
+              </a>
+            ) : (
+              <div
+                key={store.logo}
+                title={`${store.name} segera hadir`}
+                className="flex h-24 items-center justify-center opacity-40 grayscale"
+              >
+                <span className="scale-[0.72] sm:scale-90 xl:scale-100">
+                  <MarketplaceLogo logo={store.logo} />
+                </span>
+              </div>
+            )
+          )}
+        </div>
+        <div className="mt-6 text-center">
+          <a {...linkProps('/official-store')} className="group inline-flex items-center gap-1 border-b-2 border-ink pb-0.5 text-xs font-bold uppercase tracking-widest hover:border-brand hover:text-brand">
+            Lihat Semua Official Store
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 /* ---------------- Kategori ---------------- */
 
@@ -470,6 +523,7 @@ export default function HomePage() {
     <>
       <HeroSlider products={products} />
       <UspStrip />
+      <OfficialStoreStrip />
       <CategoryTiles products={products} />
       <ProductTabs products={products} loading={loading} />
       <PromoBanners products={products} />
