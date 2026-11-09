@@ -1,76 +1,62 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Archivo:wght@500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-heading: "Outfit", sans-serif;
-  --font-serif: "Playfair Display", serif;
-  --font-mono: "JetBrains Mono", monospace;
-  
-  --color-brand-primary: #f1f5f9;     /* Soft slate grey background for cards/sections/sub-elements */
-  --color-brand-secondary: #166534;   /* Deep leafy forest green for primary borders & heavy headers */
-  --color-brand-accent: #ea580c;      /* Energetic vibrant orange for details, tags, and highlights */
-  --color-brand-dark: #fafafa;        /* Clean elegant very light grey background */
+  --font-heading: "Archivo", "Inter", sans-serif;
+
+  /* Palet utama: netral ala toko online + hijau & oranye Tani Makmur */
+  --color-ink: #111111;          /* teks utama & tombol gelap */
+  --color-muted: #6b6b6b;        /* teks sekunder */
+  --color-line: #e7e7e7;         /* garis & border */
+  --color-soft: #f5f5f3;         /* latar kartu produk */
+  --color-brand: #166534;        /* hijau Tani Makmur */
+  --color-brand-dark: #0f3d22;   /* hijau gelap untuk footer/banner */
+  --color-accent: #ea580c;       /* oranye untuk badge & sorotan */
+  --color-sale: #dc2626;         /* merah untuk stok habis / peringatan */
+
+  /* Alias lama supaya komponen yang belum diubah tetap tampil benar */
+  --color-brand-primary: #f5f5f3;
+  --color-brand-secondary: #166534;
+  --color-brand-accent: #ea580c;
 }
 
-/* Custom scroll bar */
-::-webkit-scrollbar {
-  width: 8px;
+html {
+  scroll-behavior: smooth;
 }
-::-webkit-scrollbar-track {
-  background: #fafafa;
+
+body {
+  background: #ffffff;
+  color: var(--color-ink);
 }
-::-webkit-scrollbar-thumb {
-  background: #166534;
-  border-radius: 4px;
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #f5f5f3; }
+::-webkit-scrollbar-thumb { background: #c9c9c9; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #166534; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Teks berjalan di announcement bar */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #ea580c;
+.animate-marquee {
+  animation: marquee 32s linear infinite;
 }
-/* Style untuk Judul Section Produk */
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee { animation: none; }
+}
+
+/* Judul section bergaya label kecil + judul tebal */
 .section-title {
-  font-family: 'Poppins', sans-serif; /* atau font yang Anda gunakan */
-  font-size: 1.125rem; /* 18px */
-  font-weight: 700; /* Bold */
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #1e5631; /* Hijau gelap Tani Makmur */
-  display: flex;
-  align-items: center;
-  gap: 0.75rem; /* 12px */
-  margin-bottom: 1.5rem; /* 24px */
-  padding-left: 0;
-}
-
-/* Garis vertikal oranye di kiri */
-.section-title::before {
-  content: '';
-  display: block;
-  width: 4px;
-  height: 28px;
-  background-color: #ea580c; /* Oranye brand-accent */
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-
-/* Variasi ukuran */
-.section-title-lg {
-  font-size: 1.25rem; /* 20px */
-}
-
-.section-title-sm {
-  font-size: 1rem; /* 16px */
-}
-
-/* Untuk mobile */
-@media (max-width: 640px) {
-  .section-title {
-    font-size: 1rem;
-    margin-bottom: 1rem;
-  }
-  
-  .section-title::before {
-    height: 24px;
-    width: 3px;
-  }
+  letter-spacing: 0.02em;
+  color: var(--color-ink);
+  margin-bottom: 1.25rem;
 }
